@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <base target="_top">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --sky-15: #CDE9F9; --sky-45: #0F97FF; --sky-75: #08428D;
+      --street-15: #EDF0F4; --street-30: #D0D7E2; --street-90: #1E2430;
+      --grass-45: #22D195; --grass-75: #0A654B;
+      --error-bg: #FDECEA; --error-txt: #B71C1C; --error-bdr: #e57373;
+      --warn-bg: #FFF8F0; --warn-bdr: #F5A623; --warn-txt: #A05E00;
+      --text-dark: #1E2430; --text-muted: #73879A;
+      --border: #D0D7E2; --sand: #F0F0EB;
+      --radius: 4px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #fff; font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: var(--text-dark); font-size: 13px; overflow-x: hidden; }
+    .app-header { background: var(--street-90); padding: 10px; position: sticky; top: 0; z-index: 1000; }
+    .logo-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .logo-text { color: #fff; font-weight: 800; font-size: 14px; letter-spacing: -0.3px; }
+    .env-pill { font-family: "IBM Plex Sans"; font-size: 9px; font-weight: 700; padding: 3px 10px; border-radius: 20px; white-space: nowrap; cursor: pointer; transition: opacity 0.15s; }
+    .env-pill:hover { opacity: 0.8; }
+    .env-import { background: rgba(245,166,35,0.18); color: var(--warn-bdr); border: 1px solid rgba(245,166,35,0.35); }
+    .env-live { background: rgba(15,151,255,0.15); color: var(--sky-45); border: 1px solid rgba(15,151,255,0.3); }
+    .nav-tabs { display: flex; gap: 4px; }
+    .nav-tab { flex: 1; padding: 8px; border: none; background: rgba(255,255,255,0.1); color: #fff; font-size: 10px; font-weight: 700; border-radius: var(--radius); cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; }
+    .nav-tab.active { background: var(--sky-45); }
+    .view-content { display: none; padding: 12px; }
+    .view-content.active { display: block; }
+    .checklist-card { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .check-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px; border-bottom: 1px solid var(--border); }
+    .check-item:last-child { border-bottom: none; }
+    .check-box { width: 18px; height: 18px; border: 2px solid var(--border); border-radius: 4px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; font-weight: 900; }
+    .check-item.done .check-box { background: var(--sky-75); border-color: var(--sky-75); }
+    .check-item.done .check-label { text-decoration: line-through; color: var(--text-muted); }
+    .check-item.user-toggle { cursor: pointer; }
+    .check-item.user-toggle:hover { background: var(--street-15); }
+    .check-item.user-done .check-box { background: var(--sky-75); border-color: var(--sky-75); }
+    .check-item.user-done .check-label { text-decoration: line-through; color: var(--text-muted); }
+    .check-label { font-weight: 600; font-size: 12px; line-height: 1.2; }
+    .check-note { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+    .gl-sync-btn { width: 100%; padding: 7px; margin-top: 8px; background: var(--sky-75); color: #fff; border: none; border-radius: var(--radius); font-family: "IBM Plex Sans"; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; cursor: pointer; transition: background 0.2s; }
+    .gl-sync-btn:hover:not(:disabled) { background: var(--sky-45); }
+    .gl-sync-btn:disabled { background: var(--text-muted); cursor: not-allowed; }
+    .gl-sync-btn.success { background: var(--grass-75); }
+    .reset-link { display: block; text-align: center; font-size: 10px; color: var(--text-muted); cursor: pointer; margin-top: 10px; text-decoration: underline; }
+    .reset-link:hover { color: var(--error-txt); }
+    .step-card { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; overflow: hidden; transition: border-color 0.2s; }
+    .step-card.active { border-color: var(--sky-45); }
+    .step-header { padding: 10px 12px; display: flex; align-items: center; gap: 8px; cursor: pointer; background: var(--street-15); transition: background 0.2s; }
+    .step-card.active .step-header { background: #EBF5FF; }
+    .step-num { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #fff; background: var(--street-90); transition: background 0.3s; }
+    .step-card.loaded .step-num { background: var(--grass-75); }
+    .step-card.prepped .step-num { background: var(--sky-75); }
+    .step-title { font-weight: 700; font-size: 12px; flex: 1; }
+    .step-badge-container { display: flex; align-items: center; gap: 4px; }
+    .step-badge { font-family: "IBM Plex Sans"; font-size: 7px; font-weight: 700; padding: 2px 7px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; }
+    .badge-nodata { background: var(--street-30); color: var(--text-muted); }
+    .badge-ready { background: rgba(15,151,255,0.12); color: var(--sky-75); border: 1px solid rgba(15,151,255,0.3); }
+    .badge-errors { background: var(--error-bg); color: var(--error-txt); border: 1px solid var(--error-bdr); }
+    .badge-loaded { background: #E6F4EA; color: var(--grass-75); border: 1px solid var(--grass-45); }
+    .badge-pending { background: var(--warn-bg); color: var(--warn-txt); border: 1px solid var(--warn-bdr); }
+    .step-body { display: none; padding: 12px; border-top: 1px solid var(--border); background: #fff; }
+    .step-card.active .step-body { display: block; }
+    .dep-warn { display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px; border-radius: var(--radius); margin-bottom: 10px; font-size: 10px; font-family: "IBM Plex Sans"; font-weight: 600; line-height: 1.4; }
+    .dep-warn-icon { flex-shrink: 0; font-size: 12px; margin-top: 1px; }
+    .dep-warn.amber { background: var(--warn-bg); border: 1px solid var(--warn-bdr); color: var(--warn-txt); }
+    .dep-warn.red { background: var(--error-bg); border: 1px solid var(--error-bdr); color: var(--error-txt); }
+    .dep-warn ul { padding-left: 14px; margin-top: 4px; font-weight: 400; }
+    .dep-warn li { margin-top: 2px; }
+    .step-dep-note { font-size: 9px; font-family: "IBM Plex Sans"; font-weight: 600; padding: 4px 12px; }
+    .step-dep-note.amber { background: var(--warn-bg); color: var(--warn-txt); border-top: 1px solid var(--warn-bdr); }
+    .step-dep-note.red { background: var(--error-bg); color: var(--error-txt); border-top: 1px solid var(--error-bdr); }
+    .step-record-count { font-size: 10px; color: var(--text-muted); text-align: center; margin-top: 6px; }
+    .prog-row { display: flex; gap: 0; margin-bottom: 8px; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .prog-btn-wrap { flex: 1; position: relative; display: flex; border-right: 1px solid var(--border); }
+    .prog-btn-wrap:last-child { border-right: none; }
+    .prog-btn { flex: 1; padding: 8px 4px; border: none; background: #fff; font-family: "IBM Plex Sans"; font-size: 9px; font-weight: 700; cursor: pointer; text-align: center; color: var(--text-muted); transition: background 0.2s, color 0.2s; text-transform: uppercase; letter-spacing: 0.3px; width: 100%; }
+    .prog-btn-label { font-size: 7px; font-weight: 400; display: block; margin-top: 2px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
+    .prog-btn.next { background: #fff; color: var(--sky-75); font-weight: 800; }
+    .prog-btn.ran { background: #F0FAF4; color: var(--grass-75); border-top: 2px solid var(--grass-45); }
+    .prog-btn.ran .prog-btn-label { color: var(--grass-75); opacity: 0.75; }
+    .prog-btn.done { background: var(--grass-75); color: #fff; cursor: default; }
+    .prog-btn.done .prog-btn-label { color: rgba(255,255,255,0.7); }
+    .prog-btn.disabled-warn { background: var(--warn-bg); color: var(--warn-txt); cursor: not-allowed; opacity: 0.85; }
+    .prog-btn.disabled-warn .prog-btn-label { color: var(--warn-txt); opacity: 0.7; }
+    .prog-btn.disabled-block { background: var(--error-bg); color: var(--error-txt); cursor: not-allowed; opacity: 0.85; }
+    .prog-btn.disabled-block .prog-btn-label { color: var(--error-txt); opacity: 0.7; }
+    .prog-btn.disabled { background: var(--street-15); color: var(--street-30); cursor: not-allowed; }
+    .prog-btn.disabled .prog-btn-label { color: var(--street-30); }
+    .prog-btn.is-running { background: var(--sky-15) !important; color: var(--sky-75) !important; cursor: wait !important; animation: pulse-run 1.2s ease-in-out infinite; }
+    .prog-btn.is-running .prog-btn-label { color: var(--sky-75) !important; opacity: 0.8; }
+    @keyframes pulse-run { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
+    .log-entry-label { font-family: "IBM Plex Sans"; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted); margin-bottom: 3px; }
+    .log-select-wrap { position: relative; margin-bottom: 6px; }
+    .log-select-wrap select { width: 100%; font-size: 11px; padding: 7px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: #fff; color: var(--text-dark); appearance: none; cursor: pointer; }
+    .log-select-wrap::after { content: "▼"; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 8px; color: var(--text-muted); pointer-events: none; }
+    .log-count-note { font-size: 9px; color: var(--text-muted); text-align: right; margin-bottom: 8px; }
+    .stats-bar { display: flex; gap: 4px; margin-bottom: 8px; }
+    .stat-chip { flex: 1; padding: 8px 4px; border-radius: var(--radius); text-align: center; border: 1px solid var(--border); background: #fff; }
+    .stat-chip.ok { border-color: var(--grass-45); color: var(--grass-75); background: #E6F4EA; }
+    .stat-chip.pend { border-color: var(--warn-bdr); color: var(--warn-txt); background: var(--warn-bg); }
+    .stat-chip.fail { border-color: #e57373; color: var(--error-txt); background: var(--error-bg); }
+    .stat-num { font-size: 18px; font-weight: 800; display: block; line-height: 1; }
+    .stat-lbl { font-size: 7px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.4px; margin-top: 2px; display: block; }
+    .audit-meta { background: var(--street-15); padding: 10px; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; }
+    .meta-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+    .meta-object { font-size: 13px; font-weight: 700; }
+    .badge-type { font-family: "IBM Plex Sans"; font-size: 7px; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; background: var(--street-90); color: #fff; }
+    .badge-count { font-family: "IBM Plex Sans"; font-size: 7px; font-weight: 700; padding: 2px 6px; border-radius: 3px; background: #E6F4EA; color: var(--grass-75); border: 1px solid var(--grass-45); }
+    .badge-count.partial { background: var(--warn-bg); color: var(--warn-txt); border-color: var(--warn-bdr); }
+    .badge-count.failed { background: var(--error-bg); color: var(--error-txt); border-color: #e57373; }
+    .badge-count.pending { background: var(--warn-bg); color: var(--warn-txt); border-color: var(--warn-bdr); }
+    .meta-line { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+    .meta-line strong { color: var(--text-dark); }
+    .result-group { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; overflow: hidden; }
+    .result-group-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; cursor: pointer; user-select: none; font-family: "IBM Plex Sans"; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+    .result-group.success .result-group-header { background: #E6F4EA; color: var(--grass-75); }
+    .result-group.pending .result-group-header { background: var(--warn-bg); color: var(--warn-txt); }
+    .result-group.failure .result-group-header { background: var(--error-bg);color: var(--error-txt); }
+    .result-group-body { display: none; border-top: 1px solid var(--border); }
+    .result-group.open .result-group-body { display: block; }
+    .group-search { width: 100%; padding: 7px 10px; border: none; border-bottom: 1px solid var(--border); font-size: 11px; background: #fff; color: var(--text-dark); outline: none; }
+    .group-search::placeholder { color: var(--text-muted); }
+    .result-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; border-bottom: 1px solid var(--border); background: #fff; }
+    .result-row:last-child { border-bottom: none; }
+    .res-left { display: flex; align-items: center; gap: 8px; overflow: hidden; min-width: 0; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .dot.ok { background: var(--grass-45); }
+    .dot.err { background: var(--error-txt); }
+    .dot.pend { background: var(--warn-bdr); }
+    .res-label { font-weight: 600; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .res-right { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+    .af-id-label { font-family: "IBM Plex Sans"; font-size: 7px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.3px; }
+    .id-value { font-family: "IBM Plex Sans"; font-size: 8px; color: var(--sky-75); background: var(--sky-15); padding: 2px 5px; border-radius: 3px; cursor: pointer; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .id-value:hover { background: #b0d9f5; }
+    .job-id-label { font-family: "IBM Plex Sans"; font-size: 7px; font-weight: 700; color: var(--warn-txt); text-transform: uppercase; letter-spacing: 0.3px; }
+    .job-id-value { font-family: "IBM Plex Sans"; font-size: 8px; color: var(--warn-txt); background: var(--warn-bg); border: 1px solid rgba(245,166,35,0.3); padding: 2px 5px; border-radius: 3px; cursor: pointer; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .job-id-value:hover { background: #fde8c0; }
+    .res-error-msg { font-size: 9px; color: var(--error-txt); padding: 4px 10px 6px 25px; background: var(--error-bg); }
+    .empty-state { padding: 14px 10px; text-align: center; font-size: 10px; color: var(--text-muted); background: #fff; }
+    .sync-pending-btn { width: 100%; padding: 8px; margin-bottom: 8px; background: var(--warn-bg); border: 1px solid var(--warn-bdr); color: var(--warn-txt); font-family: "IBM Plex Sans"; font-size: 10px; font-weight: 700; border-radius: var(--radius); cursor: pointer; text-transform: uppercase; letter-spacing: 0.3px; transition: background 0.2s; }
+    .sync-pending-btn:hover { background: #fde8c0; }
+    .debug-section { border: 1px solid var(--border); border-radius: var(--radius); margin-top: 6px; overflow: hidden; }
+    .debug-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: var(--street-15); cursor: pointer; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; }
+    .debug-body { display: none; background: #1E2430; }
+    .debug-section.open .debug-body { display: block; }
+    .debug-raw-bar { display: flex; justify-content: space-between; align-items: center; padding: 5px 10px; background: rgba(255,255,255,0.07); border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .debug-raw-label { font-family: "IBM Plex Sans"; font-size: 8px; font-weight: 700; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px; }
+    .copy-btn { font-family: "IBM Plex Sans"; font-size: 8px; font-weight: 700; padding: 3px 10px; background: rgba(255,255,255,0.12); color: #fff; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.3px; transition: background 0.2s, color 0.2s, border-color 0.2s; min-width: 52px; text-align: center; }
+    .copy-btn:hover { background: rgba(255,255,255,0.22); }
+    .copy-btn.copied { background: rgba(34,209,149,0.2); color: var(--grass-45); border-color: rgba(34,209,149,0.4); }
+    .debug-pre { color: #A8C0D6; font-family: "IBM Plex Sans", monospace; font-size: 9px; padding: 12px; white-space: pre-wrap; word-break: break-word; margin: 0; line-height: 1.7; height: 180px; overflow-y: auto; }
+    #toast { position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); background: var(--street-90); color: #fff; padding: 6px 12px; border-radius: 20px; font-size: 11px; opacity: 0; transition: opacity 0.3s; z-index: 2000; pointer-events: none; }
+    #toast.show { opacity: 1; }
+    #error-banner { display: none; background: var(--error-bg); border: 1px solid #e57373; border-radius: var(--radius); padding: 8px 10px; margin: 8px 12px 0; font-size: 10px; color: var(--error-txt); position: relative; }
+    #error-banner.show { display: block; }
+    #error-banner .close-err { position: absolute; right: 8px; top: 6px; cursor: pointer; font-size: 12px; color: var(--error-txt); background: none; border: none; font-weight: 700; }
+    /* ── Sub-step cards (Recurring Charges, Late Fees, etc.) ── */
+    .sub-steps-section { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+    .sub-step-divider { font-family: "IBM Plex Sans"; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted); margin-bottom: 10px; }
+    .sub-step-card { background: var(--street-15); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px; }
+    .sub-step-card:last-child { margin-bottom: 0; }
+    .sub-step-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .sub-step-label { font-size: 11px; font-weight: 700; flex: 1; color: var(--text-dark); }
+    .sub-step-blurb { font-size: 10px; color: var(--text-muted); margin-bottom: 8px; }
+    .sub-step-dep-note { font-size: 9px; font-family: "IBM Plex Sans"; font-weight: 600; color: var(--warn-txt); margin-bottom: 6px; }
+    .copy-warning-bar {
+    display: none;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 9px 12px;
+    background: var(--error-bg);
+    border-bottom: 1px solid var(--error-bdr);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--error-txt);
+    line-height: 1.4;
+    cursor: pointer;
+  }
+  .copy-warning-bar.show { display: flex; }
+  .copy-warning-bar-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="logo-row">
+      <div class="logo-text">appfolio <span style="font-weight:400; opacity:0.6; font-size:10px;">| LOAD TOOL</span></div>
+      <div id="envLabel" class="env-pill env-import" onclick="openApiSetup()" title="Click to change environment">CONNECTING...</div>
+    </div>
+    <nav class="nav-tabs">
+      <button class="nav-tab active" id="tab-setup"  onclick="switchView('setup')">1. Setup</button>
+      <button class="nav-tab"        id="tab-load"   onclick="switchView('load')">2. Load</button>
+      <button class="nav-tab"        id="tab-audit"  onclick="switchView('audit')">3. Audit</button>
+    </nav>
+  </header>
+  <div class="copy-warning-bar" id="copyWarningBar" onclick="openApiSetup()" title="Click to enter new credentials">
+  <span class="copy-warning-bar-icon">🚫</span>
+  <div>
+    <strong>Copied spreadsheet detected — credentials cleared.</strong>
+    Click here to enter new credentials.
+  </div>
+</div>
+
+  <section id="view-setup" class="view-content active">
+    <div class="checklist-card">
+      <div id="check-api" class="check-item">
+        <div class="check-box">✓</div>
+        <div>
+          <div class="check-label">API connection verified</div>
+          <div class="check-note">Checked automatically when credentials are saved</div>
+        </div>
+      </div>
+      <div id="check-env" class="check-item user-toggle" onclick="toggleUserCheck(this, 'check-env')">
+        <div class="check-box">✓</div>
+        <div>
+          <div class="check-label">Confirmed target environment</div>
+          <div class="check-note">Click to confirm — environment shown at top of sidebar</div>
+        </div>
+      </div>
+      <div id="check-gl-import" class="check-item user-toggle" onclick="toggleUserCheck(this, 'check-gl-import')">
+        <div class="check-box">✓</div>
+        <div>
+          <div class="check-label">GL Accounts imported</div>
+          <div class="check-note">Manually import the GL Accounts tab in AppFolio before syncing</div>
+        </div>
+      </div>
+      <div id="check-gl-sync" class="check-item" style="flex-direction: column; align-items: stretch;">
+        <div style="display:flex; align-items:flex-start; gap:10px;">
+          <div id="check-gl-sync-box" class="check-box">✓</div>
+          <div>
+            <div id="check-gl-sync-label" class="check-label">GL Accounts synced</div>
+            <div class="check-note">Retrieves AF GL IDs and writes them to the GL Accounts tab</div>
+          </div>
+        </div>
+        <button id="gl-sync-btn" class="gl-sync-btn" onclick="runGlSync()">Sync GL Accounts →</button>
+      </div>
+    </div>
+    <span class="reset-link" onclick="resetAll()">↺ Reset checklist &amp; load progress</span>
+    <p style="text-align:center; font-size:10px; color:var(--text-muted); margin-top:10px; line-height:1.4;">
+      Configure credentials via the <strong>Onboarding API</strong> menu.<br>
+      <span style="color:var(--sky-45); cursor:pointer;" onclick="openApiSetup()">Or click the environment pill above ↑</span>
+    </p>
+  </section>
+
+  <section id="view-load" class="view-content">
+    <div style="font-family:'IBM Plex Sans'; font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; color:var(--text-muted); margin-bottom:8px;">
+      Load Sequence — Prep · Load · Sync
+    </div>
+    <div id="load-workflow"></div>
+  </section>
+
+  <section id="view-audit" class="view-content">
+    <div class="log-entry-label">Log Entry</div>
+    <div class="log-select-wrap"><select id="entrySelect" onchange="loadEntry(this.value)"></select></div>
+    <div id="logCountNote" class="log-count-note"></div>
+    <div id="audit-results-area"></div>
+  </section>
+
+  <div id="error-banner"><button class="close-err" onclick="document.getElementById('error-banner').classList.remove('show')">✕</button><span id="error-msg"></span></div>
+  <div id="toast"></div>
+
+  <script>
+    const WORKFLOW_STEPS = [
+      { id: 'banks',       label: 'Banks',           deps: [],                    blurb: 'Load bank accounts first — required for property creation.',                                                                  prep: 'prepBanks',       load: 'runBankLoad',       syncFn: null,                   state: 'none', recordCount: null, summary: null, subSteps: [] },
+      { id: 'owners',      label: 'Owners',          deps: [],                    blurb: 'Requires unique reference IDs per owner.',                                                                                      prep: 'prepOwners',      load: 'runOwnerLoad',      syncFn: 'runOwnerLoadSync',     state: 'none', recordCount: null, summary: null, subSteps: [] },
+      { id: 'properties',  label: 'Properties',      deps: ['banks'],             blurb: 'Requires banks — bank account IDs must exist.',                                                                                  prep: 'prepProperties',  load: 'runPropertyLoad',   syncFn: null,                   state: 'none', recordCount: null, summary: null,
+        subSteps: [
+          { id: 'ownergroups',      label: 'Owner Assignment', deps: ['owners'], blurb: 'Assign owners to properties — owner and property IDs must exist first.',               prep: 'prepOwnerGroups',      load: 'runOwnerGroupLoad',      syncFn: null, state: 'none', recordCount: null, summary: null },
+          { id: 'propertylatefees', label: 'Late Fees',        deps: [],         blurb: 'Property-level late fee policies. Requires PropertyId from the Properties load above.', prep: 'prepPropertyLateFees', load: 'runPropertyLateFeeLoad', syncFn: 'runPropertyLateFeeLoadSync', state: 'none', recordCount: null, summary: null }
+        ]
+      },
+      { id: 'unittypes',   label: 'Unit Types',       deps: ['properties'],        blurb: 'Load unit types — property IDs must exist first. Execute before units.',                                                       prep: 'prepUnitTypes',   load: 'runUnitTypeLoad',    syncFn: 'runUnitTypeLoadSync',  state: 'none', recordCount: null, summary: null, subSteps: [] },
+      { id: 'units',       label: 'Units',            deps: ['properties'],        blurb: 'Individual units — property IDs must exist first. SFR units are already created; marketing info will be PATCHed.',            prep: 'prepUnits',       load: 'runUnitLoad',        syncFn: null,                   state: 'none', recordCount: null, summary: null, subSteps: [] },
+      { id: 'occupancies', label: 'Tenants',           deps: ['units'],             blurb: 'Creates tenant records and links them to units — unit IDs must exist.',                                                        prep: 'prepTenants',     load: 'runTenantLoad',      syncFn: 'syncTenantJobStatuses', state: 'none', recordCount: null, summary: null,
+        subSteps: [
+          { id: 'reccharges',        label: 'Recurring Charges', blurb: 'Recurring charges — occupancy IDs must exist first.',                                          prep: 'prepRecurringCharges',  load: 'executeRecurringChargeLoad', syncFn: null, state: 'none', recordCount: null, summary: null },
+          { id: 'occupancylatefees', label: 'Late Fees',         blurb: 'Occupancy-level late fee policies. Requires OccupancyId from the Occupancies load above.',    prep: 'prepOccupancyLateFees', load: 'runOccupancyLateFeeLoad',     syncFn: 'runOccupancyLateFeeLoadSync', state: 'none', recordCount: null, summary: null }
+        ]
+      },
+      { id: 'vendors',     label: 'Vendors',          deps: [],                    blurb: 'Vendor records can be loaded independently at any time.',                                                                       prep: 'prepVendors',     load: 'runVendorLoad',      syncFn: 'runVendorLoadSync',    state: 'none', recordCount: null, summary: null, subSteps: [] }
+    ];
+
+    let activeStepId = null;
+
+    // ── findStep: searches top-level and subSteps by id ───────
+    function findStep(stepId) {
+      let s = WORKFLOW_STEPS.find(x => x.id === stepId);
+      if (s) return s;
+      for (const p of WORKFLOW_STEPS) {
+        s = (p.subSteps || []).find(x => x.id === stepId);
+        if (s) return s;
+      }
+      return null;
+    }
+
+    // ── renderSubStep: builds HTML for one sub-step card ──────
+    // Checks parent.state === 'loaded' AND any extra deps listed in sub.deps
+    // (e.g. ownergroups also requires owners, independent of its parent).
+    function renderSubStep(sub, parent) {
+      const parentLoaded = _depsUnlocked || parent.state === 'loaded';
+
+      // Extra deps: entries in sub.deps that are not the parent's id
+      const extraDeps   = (sub.deps || []).filter(depId => depId !== parent.id);
+      const extraLoaded = _depsUnlocked || extraDeps.every(depId => { const d = findStep(depId); return d && d.state === 'loaded'; });
+      const allDepsLoaded = parentLoaded && extraLoaded;
+
+      // Build "waiting on" note if any dep is unmet
+      const unmetLabels = [];
+      if (!parentLoaded) unmetLabels.push(parent.label);
+      extraDeps.forEach(depId => { const d = findStep(depId); if (!d || d.state !== 'loaded') unmetLabels.push(d ? d.label : depId); });
+      const depNote = unmetLabels.length
+        ? `<div class="sub-step-dep-note">⚠ Load ${unmetLabels.join(' &amp; ')} first</div>` : '';
+
+      const subBadgesHtml = badgeForStep(sub).map(b => `<span class="step-badge ${b.cls}">${b.text}</span>`).join('');
+
+      const prepDone    = sub.state === 'prepped' || sub.state === 'loaded';
+      const prepClass   = prepDone ? 'ran' : (allDepsLoaded ? 'next' : 'disabled');
+      const prepLabel   = prepDone ? '✓ PREP' : 'PREP';
+      const prepDisabled = !allDepsLoaded && !prepDone;
+
+      let loadClass, loadLabel, loadDisabled;
+      if (sub.state === 'loaded') {
+        loadClass = 'ran'; loadLabel = '✓ LOAD'; loadDisabled = false;
+      } else if (sub.state === 'prepped' && allDepsLoaded) {
+        loadClass = 'next'; loadLabel = 'LOAD'; loadDisabled = false;
+      } else {
+        loadClass = 'disabled'; loadLabel = 'LOAD'; loadDisabled = true;
+      }
+
+      const syncBtnHTML = sub.syncFn
+        ? `<div class="prog-btn-wrap">
+             <button class="prog-btn ${sub.state === 'loaded' ? 'next' : 'disabled'}"
+               onclick="event.stopPropagation(); runStep('${sub.id}','sync',this)"
+               ${sub.state !== 'loaded' ? 'disabled' : ''}>
+               SYNC<span class="prog-btn-label">Sync</span>
+             </button>
+           </div>` : '';
+
+      return `<div class="sub-step-card" id="step-card-${sub.id}">
+        <div class="sub-step-header">
+          <span class="sub-step-label">${sub.label}</span>
+          <div class="step-badge-container">${subBadgesHtml}</div>
+        </div>
+        <p class="sub-step-blurb">${sub.blurb}</p>
+        ${depNote}
+        <div class="prog-row">
+          <div class="prog-btn-wrap">
+            <button class="prog-btn ${prepClass}"
+              onclick="event.stopPropagation(); runStep('${sub.id}','prep',this)"
+              ${prepDisabled ? 'disabled' : ''}>
+              ${prepLabel}<span class="prog-btn-label">Prepare</span>
+            </button>
+          </div>
+          <div class="prog-btn-wrap">
+            <button class="prog-btn ${loadClass}"
+              onclick="event.stopPropagation(); ${loadDisabled ? '' : `runStep('${sub.id}','load',this)`}"
+              ${loadDisabled ? 'disabled' : ''}>
+              ${loadLabel}<span class="prog-btn-label">Load</span>
+            </button>
+          </div>
+          ${syncBtnHTML}
+        </div>
+        ${sub.recordCount !== null ? `<div class="step-record-count">${sub.recordCount} records in sheet</div>` : ''}
+      </div>`;
+    }
+    const checklistState = { 'check-env': false, 'check-gl-import': false, 'check-gl-sync': false };
+
+    function badgeForStep(step) {
+      const s = step.summary;
+      if (!s || (s.ready === 0 && s.success === 0 && s.errors === 0 && s.pending === 0)) {
+        return [{ cls: 'badge-nodata', text: 'NO DATA' }];
+      }
+      const badges = [];
+      if (s.ready > 0)   badges.push({ cls: 'badge-ready',   text: `${s.ready} READY` });
+      if (s.success > 0) badges.push({ cls: 'badge-loaded',  text: `${s.success} SUCCESS` });
+      if (s.pending > 0) badges.push({ cls: 'badge-pending', text: `${s.pending} PENDING` });
+      if (s.errors > 0)  badges.push({ cls: 'badge-errors',  text: `${s.errors} ERRORS` });
+      return badges;
+    }
+
+    function applyCheckState(id, isDone) {
+      checklistState[id] = isDone;
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (isDone) {
+        el.classList.add('user-done');
+        el.querySelector('.check-box').textContent = '✓';
+      } else {
+        el.classList.remove('user-done');
+        el.querySelector('.check-box').textContent = '';
+      }
+    }
+
+    function applyGlSyncState(isDone) {
+      checklistState['check-gl-sync'] = isDone;
+      const box = document.getElementById('check-gl-sync-box');
+      const label = document.getElementById('check-gl-sync-label');
+      const btn = document.getElementById('gl-sync-btn');
+      if (isDone) {
+        box.style.background = 'var(--sky-75)';
+        box.style.borderColor = 'var(--sky-75)';
+        box.textContent = '✓';
+        label.style.textDecoration = 'line-through';
+        label.style.color = 'var(--text-muted)';
+        btn.textContent = '✓ Sync complete';
+        btn.classList.add('success');
+      } else {
+        box.style.background = '';
+        box.style.borderColor = '';
+        box.textContent = '';
+        label.style.textDecoration = '';
+        label.style.color = '';
+        btn.textContent = 'Sync GL Accounts →';
+        btn.classList.remove('success');
+        btn.disabled = false;
+      }
+    }
+
+    function toggleUserCheck(el, id) {
+      const nowDone = !checklistState[id];
+      applyCheckState(id, nowDone);
+      persistStepStates();
+    }
+
+    function persistStepStates() {
+      // Flatten top-level and sub-step states into one array for storage.
+      // findStep() restores them by id regardless of nesting level.
+      const allSteps = [];
+      WORKFLOW_STEPS.forEach(s => {
+        allSteps.push({ id: s.id, state: s.state, recordCount: s.recordCount, summary: s.summary });
+        (s.subSteps || []).forEach(sub => allSteps.push({ id: sub.id, state: sub.state, recordCount: sub.recordCount, summary: sub.summary }));
+      });
+      const payload = { steps: allSteps, checklist: { ...checklistState } };
+      google.script.run.withFailureHandler(e => console.warn('State save failed:', e.message)).saveStepStates(JSON.stringify(payload));
+    }
+
+    function runGlSync() {
+      const btn = document.getElementById('gl-sync-btn');
+      btn.disabled = true; btn.textContent = 'Syncing…';
+      google.script.run.withSuccessHandler(() => {
+        applyGlSyncState(true); persistStepStates(); showToast('GL Accounts synced ✓');
+      }).withFailureHandler(e => {
+        btn.textContent = 'Sync GL Accounts →'; btn.disabled = false; showError('GL sync failed: ' + e.message);
+      }).syncGLAccounts();
+    }
+
+    function resetAll() {
+      if (!confirm('Reset all progress?')) return;
+      applyCheckState('check-env', false); applyCheckState('check-gl-import', false); applyGlSyncState(false);
+      WORKFLOW_STEPS.forEach(s => {
+        s.state = 'none'; s.recordCount = null; s.summary = null;
+        (s.subSteps || []).forEach(sub => { sub.state = 'none'; sub.recordCount = null; sub.summary = null; });
+      });
+      persistStepStates(); renderLoadWorkflow(); showToast('Progress reset ✓');
+    }
+
+    function renderLoadWorkflow() {
+  const container = document.getElementById('load-workflow');
+  container.innerHTML = '';
+  WORKFLOW_STEPS.forEach((step, i) => {
+    const tier    = depTier(step);
+    const unmet   = unmetDepLines(step);
+    const isOpen  = step.id === activeStepId;
+    const badges  = badgeForStep(step);
+    const badgesHtml = badges.map(b => `<span class="step-badge ${b.cls}" style="margin-left: 4px;">${b.text}</span>`).join('');
+
+    let cardClass = 'step-card' + (isOpen ? ' active' : '') + (step.state === 'loaded' ? ' loaded' : '') + (step.state === 'prepped' ? ' prepped' : '');
+
+    const prepClass = (step.state === 'prepped' || step.state === 'loaded') ? 'ran' : 'next';
+    const prepLabel = (prepClass === 'ran') ? '✓ PREP' : 'PREP';
+
+    let loadClass, loadLabel, loadDisabled = false, loadTooltip = '';
+    if (step.state === 'loaded') { loadClass = 'ran'; loadLabel = '✓ LOAD'; }
+    else if (tier === 'ok') { loadClass = step.state === 'prepped' ? 'next' : 'disabled'; loadLabel = 'LOAD'; loadDisabled = step.state !== 'prepped'; }
+    else { loadClass = tier === 'prepped' ? 'disabled-warn' : 'disabled-block'; loadLabel = 'LOAD'; loadDisabled = true; loadTooltip = 'Load blocked by dependencies.'; }
+
+    const syncClass = step.state === 'loaded' ? 'next' : 'disabled';
+
+    // ── Sync button: only render for async objects (syncFn set) ──
+    const syncBtnHTML = step.syncFn
+      ? `<div class="prog-btn-wrap">
+           <button class="prog-btn ${syncClass}"
+             onclick="event.stopPropagation(); runStep('${step.id}','sync',this)"
+             ${step.state !== 'loaded' ? 'disabled' : ''}>
+             SYNC<span class="prog-btn-label">Sync</span>
+           </button>
+         </div>`
+      : '';
+
+    let depNoteHTML = (tier !== 'ok' && unmet.length && !isOpen)
+      ? `<div class="step-dep-note ${tier === 'missing' ? 'red' : 'amber'}">⚠️ Waiting on: ${unmet.map(u => u.label).join(', ')}</div>`
+      : '';
+
+    const card = document.createElement('div');
+    card.id = 'step-card-' + step.id;
+    card.className = cardClass;
+    card.innerHTML = `
+      <div class="step-header" onclick="toggleStep('${step.id}')">
+        <div class="step-num">${i + 1}</div>
+        <div class="step-title" style="flex: 1;">${step.label}</div>
+        <div class="step-badge-container">${badgesHtml}</div>
+        <span style="font-size:10px; color:var(--text-muted); margin-left:8px;">${isOpen ? '▲' : '▼'}</span>
+      </div>
+      ${depNoteHTML}
+      <div class="step-body">
+        <p style="font-size:10px; color:var(--text-muted); margin-bottom:10px;">${step.blurb}</p>
+        <div class="prog-row">
+          <div class="prog-btn-wrap">
+            <button class="prog-btn ${prepClass}" onclick="event.stopPropagation(); runStep('${step.id}','prep',this)">
+              ${prepLabel}<span class="prog-btn-label">Prepare</span>
+            </button>
+          </div>
+          <div class="prog-btn-wrap" style="cursor:${loadDisabled ? 'not-allowed' : 'pointer'};" title="${loadTooltip}">
+            <button class="prog-btn ${loadClass}"
+              onclick="event.stopPropagation(); ${loadDisabled ? '' : `runStep('${step.id}','load',this)`}"
+              ${loadDisabled ? 'disabled' : ''}>
+              ${loadLabel}<span class="prog-btn-label">Load</span>
+            </button>
+          </div>
+          ${syncBtnHTML}
+        </div>
+        ${step.recordCount !== null ? `<div class="step-record-count">${step.recordCount} records in sheet</div>` : ''}
+        ${(step.subSteps && step.subSteps.length)
+          ? `<div class="sub-steps-section">
+               <div class="sub-step-divider">Sub-operations</div>
+               ${step.subSteps.map(sub => renderSubStep(sub, step)).join('')}
+             </div>`
+          : ''}
+      </div>`;
+    container.appendChild(card);
+  });
+}
+
+    function toggleStep(stepId) { activeStepId = activeStepId === stepId ? null : stepId; renderLoadWorkflow(); }
+    
+    function depTier(step) {
+      if (_depsUnlocked || !step.deps.length) return 'ok';
+      let anyMissing = false, anyNotLoaded = false;
+      step.deps.forEach(depId => {
+        const dep = WORKFLOW_STEPS.find(s => s.id === depId);
+        if (!dep || dep.state === 'none') { anyMissing = true; } else if (dep.state !== 'loaded') { anyNotLoaded = true; }
+      });
+      return anyMissing ? 'missing' : anyNotLoaded ? 'prepped' : 'ok';
+    }
+
+    function unmetDepLines(step) {
+      return step.deps.map(depId => {
+        const dep = WORKFLOW_STEPS.find(s => s.id === depId);
+        if (!dep || dep.state === 'none') return { label: dep ? dep.label : depId, state: 'not started' };
+        if (dep.state !== 'loaded') return { label: dep.label, state: 'prepped, not loaded' };
+        return null;
+      }).filter(Boolean);
+    }
+
+    // Replace the existing runStep() function in UnifiedSidebar.html
+// with this version.
+//
+// FIXES
+//   1. `runningStep` guard prevents double-clicks from firing
+//      parallel calls while a step is executing.
+//   2. All buttons in the active card are disabled on click and
+//      re-enabled (via renderLoadWorkflow) on both success and
+//      failure — eliminates the "stuck" state.
+//   3. Handles the { timedOut: true } return from executeTenantLoad:
+//      keeps step.state as 'prepped' so the LOAD button remains
+//      available for re-run instead of rendering as ✓ LOAD (done).
+//   4. Handles { cancelled: true } from confirmAndRun — no state
+//      change, buttons re-enable cleanly.
+
+let runningStep    = null;
+let _depsUnlocked  = false;  // set by forceClearDependencies() — bypasses dep gate without changing step states
+
+function runStep(stepId, action, clickedBtn) {
+  if (runningStep) {
+    showToast('A step is already running — please wait.');
+    return;
+  }
+
+  const step   = findStep(stepId);
+  const fnName = action === 'prep'
+    ? step.prep
+    : action === 'load'
+      ? step.load
+      : (step.syncFn || step.load + 'Sync');
+
+  // ── Disable all buttons in this card; pulse only the clicked one ──
+  runningStep = stepId;
+  const card = document.getElementById('step-card-' + stepId);
+  if (card) card.querySelectorAll('.prog-btn').forEach(b => {
+    // Skip buttons that belong to a nested sub-step card.
+    if (b.closest('[id^="step-card-"]') !== card) return;
+    b.disabled = true;
+    if (b === clickedBtn) {
+      b.classList.add('is-running');
+      const lbl = b.querySelector('.prog-btn-label');
+      if (lbl) lbl.textContent = 'Running…';
+    }
+  });
+
+  showToast(`Running ${action}…`);
+
+  google.script.run
+    .withSuccessHandler(result => {
+      runningStep = null;
+
+      // Cancelled via confirmation dialog — no state change
+      if (result && result.cancelled) {
+        showToast('Action cancelled.');
+        renderLoadWorkflow();
+        return;
+      }
+
+      // Timed out mid-run — keep state as prepped so Load button
+      // remains available; show descriptive toast
+      const timedOut = result && result.timedOut;
+
+      if (action === 'prep') {
+        step.state = 'prepped';
+        if (result && result.recordCount) step.recordCount = result.recordCount;
+      } else if (action === 'load') {
+        if (!timedOut) {
+          step.state = 'loaded';
+        }
+        // timedOut: leave step.state as 'prepped' — LOAD stays clickable
+      }
+
+      if (timedOut) {
+        const rem = (result && result.remaining) ? ` ${result.remaining} row(s) remaining.` : '';
+        showToast(`⏱ Time limit hit.${rem} Re-run Load to continue.`);
+      }
+
+      // Refresh badges then re-render (re-enables buttons)
+      google.script.run
+        .withSuccessHandler(summary => {
+          step.summary = summary;
+          persistStepStates();
+          renderLoadWorkflow();
+        })
+        .withFailureHandler(() => renderLoadWorkflow())
+        .getSheetSummary(stepId);
+    })
+    .withFailureHandler(e => {
+      runningStep = null;
+      renderLoadWorkflow(); // re-render re-enables buttons
+      showError(e.message);
+    })
+    [fnName]();
+}
+
+    function switchView(viewId) {
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab-' + viewId).classList.add('active');
+      document.querySelectorAll('.view-content').forEach(v => v.classList.remove('active'));
+      document.getElementById('view-' + viewId).classList.add('active');
+      if (viewId === 'load') renderLoadWorkflow();
+      if (viewId === 'audit') fetchLogList();
+    }
+
+    function init() {
+    google.script.run.withSuccessHandler(d => {
+    const el = document.getElementById('envLabel');
+
+    // Copy detection — show warning bar and redirect to setup
+    if (d && d.copiedWarning) {
+      document.getElementById('copyWarningBar').classList.add('show');
+      el.textContent = 'NOT CONNECTED';
+      el.className   = 'env-pill env-import';
+      // Auto-navigate to Setup tab so the user sees the prompt immediately
+      switchView('setup');
+      return;
+    }
+
+    if (d && d.connected) {
+      el.className   = 'env-pill ' + (d.env === 'LIVE' ? 'env-live' : 'env-import');
+      el.textContent = `${d.env === 'LIVE' ? '🚀 LIVE' : '💡 IMPORT'}: ${d.company}`;
+      document.getElementById('check-api').classList.add('done');
+    } else {
+      el.textContent = 'NOT CONNECTED';
+      el.className   = 'env-pill env-import';
+    }
+  }).getDashboardHeader();
+      google.script.run.withSuccessHandler(json => {
+        if (!json) return; const parsed = JSON.parse(json);
+        _depsUnlocked = !!(parsed.depsUnlocked);  // restore dep-bypass flag set by forceClearDependencies()
+        (parsed.steps || []).forEach(s => {
+          const step = findStep(s.id);   // searches top-level + subSteps
+          if (step) { step.state = s.state; step.recordCount = s.recordCount; step.summary = s.summary; }
+        });
+        const cl = parsed.checklist || {};
+        if (cl['check-env']) applyCheckState('check-env', true);
+        if (cl['check-gl-import']) applyCheckState('check-gl-import', true);
+        if (cl['check-gl-sync']) applyGlSyncState(true);
+      }).getStepStates();
+    }
+
+    function fetchLogList() {
+      google.script.run.withSuccessHandler(entries => {
+        const sel = document.getElementById('entrySelect');
+        if (!entries || !entries.length) {
+          sel.innerHTML = '<option value="">No logs found</option>';
+          document.getElementById('logCountNote').textContent = '0 entries in this spreadsheet';
+          document.getElementById('audit-results-area').innerHTML = '';
+          return;
+        }
+        sel.innerHTML = entries.map(e => `<option value="${e.logId}">${e.label}</option>`).join('');
+        document.getElementById('logCountNote').textContent = `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} in this spreadsheet`;
+        loadEntry(entries[0].logId);
+      }).getLogEntries();
+    }
+
+    function loadEntry(id) {
+      const area = document.getElementById('audit-results-area');
+      area.innerHTML = '<div style="text-align:center; padding:16px; font-size:11px; color:var(--text-muted);">Loading...</div>';
+      google.script.run.withSuccessHandler(entry => {
+        if (!entry) { area.innerHTML = '<div style="padding:10px;">Entry not found.</div>'; return; }
+        const results = entry.results || [];
+        const succeeded = results.filter(r => r.successful === true);
+        const pending = results.filter(r => r.successful == null && r.jobId);
+        const failed = results.filter(r => r.successful === false);
+        const total = results.length;
+        const hasPending = pending.length > 0;
+        const allOk = failed.length === 0 && !hasPending && total > 0;
+        const countClass = hasPending ? 'pending' : (!allOk && succeeded.length === 0) ? 'failed' : !allOk ? 'partial' : '';
+        const statusText = hasPending ? `Pending ${pending.length}/${total}` : `Success ${succeeded.length}/${total}`;
+        const envClass = entry.env === 'LIVE' ? 'env-live' : 'env-import';
+        const envText = entry.env === 'LIVE' ? 'LIVE' : 'IMPORT';
+        const successRows = succeeded.length ? succeeded.map(r => resultRowHTML(r,'success')).join('') : '<div class="empty-state">No successful records in this batch.</div>';
+        const pendingRows = pending.length ? pending.map(r => resultRowHTML(r,'pending')).join('') : '<div class="empty-state">No pending jobs.</div>';
+        const failureRows = failed.length ? failed.map(r => resultRowHTML(r,'failure')).join('') : '<div class="empty-state">No failures recorded.</div>';
+        const syncBtn = hasPending ? `<button class="sync-pending-btn" onclick="syncPendingJobs('${id}')">⏳ Sync ${pending.length} Pending Job${pending.length > 1 ? 's' : ''} → Check Status</button>` : '';
+        area.innerHTML = `
+          <div class="stats-bar">
+            <div class="stat-chip ok"><span class="stat-num">${succeeded.length}</span><span class="stat-lbl">Resolved</span></div>
+            <div class="stat-chip pend"><span class="stat-num">${pending.length}</span><span class="stat-lbl">Pending</span></div>
+            <div class="stat-chip fail"><span class="stat-num">${failed.length}</span><span class="stat-lbl">Failed</span></div>
+          </div>
+          <div class="audit-meta">
+            <div class="meta-top">
+              <span class="meta-object">${entry.object || 'Unknown'}</span>
+              <span class="badge-type">LOAD</span>
+              <span class="badge-count ${countClass}">${statusText}</span>
+              <span class="env-pill ${envClass}" style="font-size:7px; padding:2px 7px;">${envText}</span>
+            </div>
+            <div class="meta-line">📅 ${entry.timestamp || '—'}</div>
+            <div class="meta-line">BY <strong>${entry.user || 'Unknown'}</strong></div>
+          </div>
+          ${syncBtn}
+          <div class="result-group success open" id="group-success">
+            <div class="result-group-header" onclick="toggleGroup('group-success')"><span>✅ SUCCESSFULLY LOADED ${succeeded.length}</span><span id="chev-success">▲</span></div>
+            <div class="result-group-body">
+              <input type="text" class="group-search" placeholder="Search by Reference or ID..." oninput="filterGroup('group-success', this.value)">
+              <div id="rows-success">${successRows}</div>
+            </div>
+          </div>
+          <div class="result-group pending open" id="group-pending">
+            <div class="result-group-header" onclick="toggleGroup('group-pending')"><span>⏳ PENDING ${pending.length}</span><span id="chev-pending">▲</span></div>
+            <div class="result-group-body">
+              <input type="text" class="group-search" placeholder="Search by Reference or Job ID..." oninput="filterGroup('group-pending', this.value)">
+              <div id="rows-pending">${pendingRows}</div>
+            </div>
+          </div>
+          <div class="result-group failure open" id="group-failure">
+            <div class="result-group-header" onclick="toggleGroup('group-failure')"><span>❌ NEEDS ATTENTION ${failed.length}</span><span id="chev-failure">▲</span></div>
+            <div class="result-group-body"><div id="rows-failure">${failureRows}</div></div>
+          </div>
+          <div class="debug-section" id="dbg-payload">
+            <div class="debug-header" onclick="toggleDebug('dbg-payload')"><span>🔧 PAYLOAD SENT</span><span id="chev-payload">▼</span></div>
+            <div class="debug-body">
+              <div class="debug-raw-bar"><span class="debug-raw-label">Raw Data</span><button class="copy-btn" id="copy-payload" onclick="copyDebugText('payload-pre','copy-payload')">Copy</button></div>
+              <pre id="payload-pre" class="debug-pre">${safeJson(entry.payload)}</pre>
+            </div>
+          </div>
+          <div class="debug-section" id="dbg-resp">
+            <div class="debug-header" onclick="toggleDebug('dbg-resp')"><span>🔧 RESPONSE RECEIVED</span><span id="chev-resp">▼</span></div>
+            <div class="debug-body">
+              <div class="debug-raw-bar"><span class="debug-raw-label">Raw Data</span><button class="copy-btn" id="copy-resp" onclick="copyDebugText('resp-pre','copy-resp')">Copy</button></div>
+              <pre id="resp-pre" class="debug-pre">${safeJson(entry.response)}</pre>
+            </div>
+          </div>`;
+      }).getLogEntry(id);
+    }
+
+    function syncPendingJobs(logId) {
+      showToast('Syncing pending jobs…');
+      google.script.run
+        .withSuccessHandler(result => {
+          const msg = (result && result.message) ? result.message : 'Sync complete.';
+          showToast(msg);
+          setTimeout(() => loadEntry(logId), 600);
+        })
+        .withFailureHandler(e => showToast('Sync error: ' + e.message))
+        .syncPendingJobs(logId);
+    }
+
+    function resultRowHTML(r, type) {
+      const dotClass = type === 'success' ? 'ok' : type === 'pending' ? 'pend' : 'err';
+      let rightBadge = '';
+      if (type === 'success' && r.returnedId) {
+        rightBadge = `<div class="res-right"><span class="af-id-label">API ID</span><span class="id-value" onclick="copyText('${r.returnedId}')" title="Click to copy">${r.returnedId}</span></div>`;
+      } else if (type === 'pending' && r.jobId) {
+        rightBadge = `<div class="res-right"><span class="job-id-label">JOB</span><span class="job-id-value" onclick="copyText('${r.jobId}')" title="Click to copy">${r.jobId}</span></div>`;
+      }
+      const errLine = type === 'failure' && r.errorMessage ? `<div class="res-error-msg">${r.errorMessage}</div>` : '';
+      return `<div class="result-row" data-ref="${r.referenceId||''}" data-job="${r.jobId||''}"><div class="res-left"><div class="dot ${dotClass}"></div><span class="res-label">${r.referenceId||'Unknown'}</span></div>${rightBadge}</div>${errLine}`;
+    }
+
+    function safeJson(value) {
+      if (value === null || value === undefined) return 'null';
+      try {
+        if (typeof value === 'object') return JSON.stringify(value, null, 2);
+        if (typeof value === 'string') { try { return JSON.stringify(JSON.parse(value), null, 2); } catch (_) { return value; } }
+        return String(value);
+      } catch (e) { return String(value); }
+    }
+
+    function toggleGroup(groupId) {
+      const el = document.getElementById(groupId);
+      const open = el.classList.toggle('open');
+      const chev = document.getElementById('chev-' + groupId.replace('group-',''));
+      if (chev) chev.textContent = open ? '▲' : '▼';
+    }
+
+    function filterGroup(groupId, val) {
+      const q = val.toLowerCase(), key = groupId.replace('group-','');
+      document.querySelectorAll(`#rows-${key} .result-row`).forEach(row => {
+        const show = (row.getAttribute('data-ref')||'').toLowerCase().includes(q) || (row.getAttribute('data-job')||'').toLowerCase().includes(q);
+        row.style.display = show ? 'flex' : 'none';
+        const next = row.nextElementSibling;
+        if (next && next.classList.contains('res-error-msg')) next.style.display = show ? 'block' : 'none';
+      });
+    }
+
+    function toggleDebug(sectionId) {
+      const el = document.getElementById(sectionId);
+      const open = el.classList.toggle('open');
+      const chev = document.getElementById('chev-' + sectionId.replace('dbg-',''));
+      if (chev) chev.textContent = open ? '▲' : '▼';
+    }
+
+    function copyDebugText(preId, btnId) {
+      const text = document.getElementById(preId).innerText;
+      if (!text) return;
+      const el = document.createElement('textarea');
+      el.value = text; document.body.appendChild(el); el.select();
+      document.execCommand('copy'); document.body.removeChild(el);
+      const btn = document.getElementById(btnId);
+      btn.textContent = '✓ COPIED'; btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+    }
+
+    function copyText(text) {
+      if (!text || text === '—') return;
+      const el = document.createElement('textarea');
+      el.value = text; document.body.appendChild(el); el.select();
+      document.execCommand('copy'); document.body.removeChild(el);
+      showToast('Copied!');
+    }
+
+    function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2000); }
+    function showError(msg) { document.getElementById('error-msg').textContent = msg; document.getElementById('error-banner').classList.add('show'); }
+    function openApiSetup() { google.script.run.showApiSetupSidebar(); }
+    window.onload = init;
+  </script>
+</body>
+</html>
+
+<!-- ============================================================
+  THREE CHANGES — drop these into UnifiedSidebar.html
+  1. CSS: fixed-height scrollable result group bodies
+  2. JS:  syncPendingJobs() refreshes Load tab badge after sync
+  3. JS:  grouped log entries + property filter for Tenants & Units
+============================================================ -->
+
+
+<!-- ── 1. CSS: add/replace these rules in your <style> block ── -->
+<style>
+/* Fixed-height scrollable result group bodies */
+.result-group-body {
+  display: none;
+  border-top: 1px solid var(--border);
+  max-height: 220px;        /* fixed height */
+  overflow-y: auto;         /* scroll within */
+}
+.result-group.open .result-group-body { display: block; }
+
+/* Property filter bar — shown for Tenants & Units grouped runs */
+.property-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--street-15);
+}
+.property-filter-bar label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.property-filter-select {
+  flex: 1;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 3px 6px;
+  background: #fff;
+  color: var(--text-dark);
+  outline: none;
+}
+.run-label {
+  font-size: 9px;
+  color: var(--text-muted);
+  padding: 4px 10px 0;
+  font-style: italic;
+}
+</style>
+
+
+<!-- ── 2 & 3. JS: replace these functions in your <script> block ── -->
+<script>
+
+// ── 2. syncPendingJobs — now refreshes the Load tab badge ─────
+// After sync resolves, finds the matching WORKFLOW_STEPS entry
+// by object name and re-fetches its sheet summary so the badge
+// updates without the user switching back to the Load tab.
+
+const OBJECT_TO_STEP_ID = {
+  'Owners':      'owners',
+  'Unit Types':  'unittypes',
+  'Tenants':     'occupancies',
+  'Occupancies': 'occupancies',
+  'Vendors':     'vendors'
+};
+
+function syncPendingJobs(logId) {
+  showToast('Syncing pending jobs…');
+  google.script.run
+    .withSuccessHandler(result => {
+      const msg = (result && result.message) ? result.message : 'Sync complete.';
+      showToast(msg);
+
+      // Refresh the audit entry view
+      setTimeout(() => loadEntry(logId), 600);
+
+      // ── Refresh Load tab badge for matching step ──────────
+      // Get the object name from the current entry's dropdown label
+      // e.g. "IMPORT | Tenants | Load | …" → "Tenants"
+      const sel   = document.getElementById('entrySelect');
+      const label = sel ? (sel.options[sel.selectedIndex] || {}).text || '' : '';
+      const parts = label.split('|').map(s => s.trim());
+      const obj   = parts[1] || '';   // second segment is always the object name
+      const stepId = OBJECT_TO_STEP_ID[obj];
+
+      if (stepId) {
+        const step = WORKFLOW_STEPS.find(s => s.id === stepId);
+        if (step) {
+          google.script.run
+            .withSuccessHandler(summary => {
+              step.summary = summary;
+              // If currently on Load tab, re-render; otherwise state is
+              // updated so it's correct next time user switches over.
+              if (document.getElementById('view-load').classList.contains('active')) {
+                persistStepStates();
+                renderLoadWorkflow();
+              } else {
+                persistStepStates();
+              }
+            })
+            .getSheetSummary(stepId);
+        }
+      }
+    })
+    .withFailureHandler(e => showToast('Sync error: ' + e.message))
+    .syncPendingJobs(logId);
+}
+
+
+// ── 3a. fetchLogList — groups Tenants & Units by run ──────────
+// Calls getLogEntries() as before, then client-side groups
+// consecutive same-object entries within a 10-minute window
+// into a single "run" item in the dropdown.
+
+function fetchLogList() {
+  google.script.run.withSuccessHandler(entries => {
+    const sel = document.getElementById('entrySelect');
+    if (!entries || !entries.length) {
+      sel.innerHTML = '<option value="">No logs found</option>';
+      document.getElementById('logCountNote').textContent = '0 entries in this spreadsheet';
+      document.getElementById('audit-results-area').innerHTML = '';
+      return;
+    }
+
+    const GROUPED_OBJECTS = new Set(['Tenants', 'Units']);
+    const RUN_WINDOW_MS   = 10 * 60 * 1000;  // 10 minutes = same run
+
+    const grouped = [];   // final list shown in dropdown
+    let i = 0;
+
+    while (i < entries.length) {
+      const e = entries[i];
+      // Parse object name from label: "IMPORT | Tenants | Load | …"
+      const obj = (e.label.split('|')[1] || '').trim();
+
+      if (!GROUPED_OBJECTS.has(obj)) {
+        grouped.push({ type: 'single', entry: e, obj });
+        i++;
+        continue;
+      }
+
+      // Collect consecutive same-object entries within the time window
+      const run   = [e];
+      const t0    = _parseLogTimestamp(e.label);
+      let   j     = i + 1;
+      while (j < entries.length) {
+        const next    = entries[j];
+        const nextObj = (next.label.split('|')[1] || '').trim();
+        if (nextObj !== obj) break;
+        const tNext = _parseLogTimestamp(next.label);
+        if (t0 && tNext && Math.abs(t0 - tNext) > RUN_WINDOW_MS) break;
+        run.push(next);
+        j++;
+      }
+
+      if (run.length === 1) {
+        grouped.push({ type: 'single', entry: e, obj });
+      } else {
+        // Use the oldest (last in array) for the timestamp label
+        const ts = (run[run.length - 1].label.split('|')[3] || '').trim();
+        const env = (run[0].label.split('|')[0] || '').trim();
+        grouped.push({
+          type:  'run',
+          obj,
+          env,
+          label: `${env} | ${obj} | Run ${ts} (${run.length} batches)`,
+          ids:   run.map(r => r.logId)
+        });
+      }
+      i = j;
+    }
+
+    sel.innerHTML = grouped.map((g, idx) => {
+      const val = g.type === 'run' ? `run:${idx}` : g.entry.logId;
+      const lbl = g.type === 'run' ? g.label : g.entry.label;
+      return `<option value="${val}">${lbl}</option>`;
+    }).join('');
+
+    // Store grouped list on window for loadEntry to reference
+    window._groupedLogList = grouped;
+
+    document.getElementById('logCountNote').textContent =
+      `${grouped.length} entr${grouped.length === 1 ? 'y' : 'ies'} (${entries.length} total batches)`;
+
+    // Load first entry
+    const first = sel.options[0];
+    if (first) loadEntry(first.value);
+
+  }).getLogEntries();
+}
+
+// Parse timestamp from label string "ENV | Obj | Action | MM/dd/yy h:mm a"
+function _parseLogTimestamp(label) {
+  const ts = (label.split('|')[3] || '').trim();
+  if (!ts) return null;
+  const d = new Date(ts);
+  return isNaN(d.getTime()) ? null : d.getTime();
+}
+
+
+// ── 3b. loadEntry — handles single entries and run groups ─────
+
+function loadEntry(id) {
+  const area = document.getElementById('audit-results-area');
+  area.innerHTML = '<div style="text-align:center;padding:16px;font-size:11px;color:var(--text-muted);">Loading...</div>';
+
+  // ── Run group ─────────────────────────────────────────────
+  if (id && id.startsWith('run:')) {
+    const idx   = parseInt(id.replace('run:', ''), 10);
+    const group = window._groupedLogList && window._groupedLogList[idx];
+    if (!group || group.type !== 'run') {
+      area.innerHTML = '<div style="padding:10px;">Run group not found.</div>';
+      return;
+    }
+    _loadRunGroup(group, area);
+    return;
+  }
+
+  // ── Single entry (unchanged path) ────────────────────────
+  google.script.run.withSuccessHandler(entry => {
+    if (!entry) { area.innerHTML = '<div style="padding:10px;">Entry not found.</div>'; return; }
+    _renderSingleEntry(entry, id, area);
+  }).getLogEntry(id);
+}
+
+
+// ── _renderSingleEntry — renders one log entry's detail view ───
+// Extracted from the original inline loadEntry() so both single
+// entries and run-group entries can share the same rendering path.
+function _renderSingleEntry(entry, id, area) {
+  const results   = entry.results || [];
+  const succeeded = results.filter(r => r.successful === true);
+  const pending   = results.filter(r => r.successful == null && r.jobId);
+  const failed    = results.filter(r => r.successful === false);
+  const total     = results.length;
+  const hasPending  = pending.length > 0;
+  const allOk       = failed.length === 0 && !hasPending && total > 0;
+  const countClass  = hasPending ? 'pending' : (!allOk && succeeded.length === 0) ? 'failed' : !allOk ? 'partial' : '';
+  const statusText  = hasPending ? `Pending ${pending.length}/${total}` : `Success ${succeeded.length}/${total}`;
+  const envClass    = entry.env === 'LIVE' ? 'env-live' : 'env-import';
+  const envText     = entry.env === 'LIVE' ? 'LIVE' : 'IMPORT';
+  const successRows = succeeded.length ? succeeded.map(r => resultRowHTML(r,'success')).join('') : '<div class="empty-state">No successful records in this batch.</div>';
+  const pendingRows = pending.length   ? pending.map(r => resultRowHTML(r,'pending')).join('')   : '<div class="empty-state">No pending jobs.</div>';
+  const failureRows = failed.length    ? failed.map(r => resultRowHTML(r,'failure')).join('')    : '<div class="empty-state">No failures recorded.</div>';
+  const syncBtn = hasPending
+    ? `<button class="sync-pending-btn" onclick="syncPendingJobs('${id}')">⏳ Sync ${pending.length} Pending Job${pending.length > 1 ? 's' : ''} → Check Status</button>`
+    : '';
+  area.innerHTML = `
+    <div class="stats-bar">
+      <div class="stat-chip ok"><span class="stat-num">${succeeded.length}</span><span class="stat-lbl">Resolved</span></div>
+      <div class="stat-chip pend"><span class="stat-num">${pending.length}</span><span class="stat-lbl">Pending</span></div>
+      <div class="stat-chip fail"><span class="stat-num">${failed.length}</span><span class="stat-lbl">Failed</span></div>
+    </div>
+    <div class="audit-meta">
+      <div class="meta-top">
+        <span class="meta-object">${entry.object || 'Unknown'}</span>
+        <span class="badge-type">LOAD</span>
+        <span class="badge-count ${countClass}">${statusText}</span>
+        <span class="env-pill ${envClass}" style="font-size:7px; padding:2px 7px;">${envText}</span>
+      </div>
+      <div class="meta-line">📅 ${entry.timestamp || '—'}</div>
+      <div class="meta-line">BY <strong>${entry.user || 'Unknown'}</strong></div>
+    </div>
+    ${syncBtn}
+    <div class="result-group success open" id="group-success">
+      <div class="result-group-header" onclick="toggleGroup('group-success')"><span>✅ SUCCESSFULLY LOADED ${succeeded.length}</span><span id="chev-success">▲</span></div>
+      <div class="result-group-body">
+        <input type="text" class="group-search" placeholder="Search by Reference or ID..." oninput="filterGroup('group-success', this.value)">
+        <div id="rows-success">${successRows}</div>
+      </div>
+    </div>
+    <div class="result-group pending open" id="group-pending">
+      <div class="result-group-header" onclick="toggleGroup('group-pending')"><span>⏳ PENDING ${pending.length}</span><span id="chev-pending">▲</span></div>
+      <div class="result-group-body">
+        <input type="text" class="group-search" placeholder="Search by Reference or Job ID..." oninput="filterGroup('group-pending', this.value)">
+        <div id="rows-pending">${pendingRows}</div>
+      </div>
+    </div>
+    <div class="result-group failure open" id="group-failure">
+      <div class="result-group-header" onclick="toggleGroup('group-failure')"><span>❌ NEEDS ATTENTION ${failed.length}</span><span id="chev-failure">▲</span></div>
+      <div class="result-group-body"><div id="rows-failure">${failureRows}</div></div>
+    </div>
+    <div class="debug-section" id="dbg-payload">
+      <div class="debug-header" onclick="toggleDebug('dbg-payload')"><span>🔧 PAYLOAD SENT</span><span id="chev-payload">▼</span></div>
+      <div class="debug-body">
+        <div class="debug-raw-bar"><span class="debug-raw-label">Raw Data</span><button class="copy-btn" id="copy-payload" onclick="copyDebugText('payload-pre','copy-payload')">Copy</button></div>
+        <pre id="payload-pre" class="debug-pre">${safeJson(entry.payload)}</pre>
+      </div>
+    </div>
+    <div class="debug-section" id="dbg-resp">
+      <div class="debug-header" onclick="toggleDebug('dbg-resp')"><span>🔧 RESPONSE RECEIVED</span><span id="chev-resp">▼</span></div>
+      <div class="debug-body">
+        <div class="debug-raw-bar"><span class="debug-raw-label">Raw Data</span><button class="copy-btn" id="copy-resp" onclick="copyDebugText('resp-pre','copy-resp')">Copy</button></div>
+        <pre id="resp-pre" class="debug-pre">${safeJson(entry.response)}</pre>
+      </div>
+    </div>`;
+}
+
+
+// ── 3c. _loadRunGroup — fetches & merges all batches in a run ──
+
+function _loadRunGroup(group, area) {
+  const ids      = group.ids;
+  const fetched  = [];
+  let   pending  = ids.length;
+
+  ids.forEach(logId => {
+    google.script.run.withSuccessHandler(entry => {
+      if (entry) fetched.push(entry);
+      pending--;
+      if (pending === 0) _renderRunGroup(group, fetched, area);
+    }).withFailureHandler(() => {
+      pending--;
+      if (pending === 0) _renderRunGroup(group, fetched, area);
+    }).getLogEntry(logId);
+  });
+}
+
+function _renderRunGroup(group, entries, area) {
+  if (!entries.length) {
+    area.innerHTML = '<div style="padding:10px;">No entries found for this run.</div>';
+    return;
+  }
+
+  // Merge all results across batches
+  const allResults = entries.flatMap(e => e.results || []);
+  const succeeded  = allResults.filter(r => r.successful === true);
+  const pending    = allResults.filter(r => r.successful == null && r.jobId);
+  const failed     = allResults.filter(r => r.successful === false);
+  const hasPending = pending.length > 0;
+  const total      = allResults.length;
+
+  // ── Collect property names for filter ────────────────────
+  // ReferenceIds for Tenants look like "Group_<ts>_<i>"; for Units
+  // they're property-prefixed. Try to extract a property prefix from
+  // the referenceId (up to the first underscore-number sequence).
+  const propertySet = new Set();
+  allResults.forEach(r => {
+    const prop = _extractPropertyFromRef(r.referenceId || '');
+    if (prop) propertySet.add(prop);
+  });
+  const properties = [...propertySet].sort();
+
+  const ts      = entries[entries.length - 1].timestamp || '—';
+  const user    = entries[0].user || 'Unknown';
+  const envCls  = group.env === 'LIVE' ? 'env-live' : 'env-import';
+  const syncBtn = hasPending
+    ? `<button class="sync-pending-btn" onclick="syncRunGroup(${JSON.stringify(group.ids)})">⏳ Sync ${pending.length} Pending Job${pending.length > 1 ? 's' : ''} → Check Status</button>`
+    : '';
+
+  const propFilterHTML = properties.length > 1
+    ? `<div class="property-filter-bar">
+         <label>Property</label>
+         <select class="property-filter-select" id="run-prop-filter" onchange="filterRunByProperty(this.value)">
+           <option value="">All properties</option>
+           ${properties.map(p => `<option value="${p}">${p}</option>`).join('')}
+         </select>
+       </div>`
+    : '';
+
+  const successRows = succeeded.length
+    ? succeeded.map(r => resultRowHTML(r, 'success')).join('')
+    : '<div class="empty-state">No successful records in this run.</div>';
+  const pendingRows = pending.length
+    ? pending.map(r => resultRowHTML(r, 'pending')).join('')
+    : '<div class="empty-state">No pending jobs.</div>';
+  const failureRows = failed.length
+    ? failed.map(r => resultRowHTML(r, 'failure')).join('')
+    : '<div class="empty-state">No failures recorded.</div>';
+
+  area.innerHTML = `
+    <div class="run-label">${entries.length} batches merged · ${total} total records</div>
+    <div class="stats-bar">
+      <div class="stat-chip ok"><span class="stat-num">${succeeded.length}</span><span class="stat-lbl">Resolved</span></div>
+      <div class="stat-chip pend"><span class="stat-num">${pending.length}</span><span class="stat-lbl">Pending</span></div>
+      <div class="stat-chip fail"><span class="stat-num">${failed.length}</span><span class="stat-lbl">Failed</span></div>
+    </div>
+    <div class="audit-meta">
+      <div class="meta-top">
+        <span class="meta-object">${group.obj}</span>
+        <span class="badge-type">RUN</span>
+        <span class="env-pill ${envCls}" style="font-size:7px;padding:2px 7px;">${group.env}</span>
+      </div>
+      <div class="meta-line">📅 ${ts}</div>
+      <div class="meta-line">BY <strong>${user}</strong></div>
+    </div>
+    ${propFilterHTML}
+    ${syncBtn}
+    <div class="result-group success open" id="group-success">
+      <div class="result-group-header" onclick="toggleGroup('group-success')">
+        <span>✅ SUCCESSFULLY LOADED ${succeeded.length}</span><span id="chev-success">▲</span>
+      </div>
+      <div class="result-group-body">
+        <input type="text" class="group-search" placeholder="Search by Reference or ID…" oninput="filterGroup('group-success', this.value)">
+        <div id="rows-success">${successRows}</div>
+      </div>
+    </div>
+    <div class="result-group pending open" id="group-pending">
+      <div class="result-group-header" onclick="toggleGroup('group-pending')">
+        <span>⏳ PENDING ${pending.length}</span><span id="chev-pending">▲</span>
+      </div>
+      <div class="result-group-body">
+        <input type="text" class="group-search" placeholder="Search by Reference or Job ID…" oninput="filterGroup('group-pending', this.value)">
+        <div id="rows-pending">${pendingRows}</div>
+      </div>
+    </div>
+    <div class="result-group failure open" id="group-failure">
+      <div class="result-group-header" onclick="toggleGroup('group-failure')">
+        <span>❌ NEEDS ATTENTION ${failed.length}</span><span id="chev-failure">▲</span>
+      </div>
+      <div class="result-group-body">
+        <div id="rows-failure">${failureRows}</div>
+      </div>
+    </div>`;
+
+  // Store merged results for property filtering
+  window._runGroupResults = { succeeded, pending, failed };
+}
+
+// Extract a property prefix from a referenceId for the filter dropdown.
+// e.g. "Parkview_1234_3" → "Parkview", "Group_1234_3" → null (tenant row)
+function _extractPropertyFromRef(refId) {
+  if (!refId || refId.startsWith('Group_')) return null;
+  const parts = refId.split('_');
+  return parts.length > 1 ? parts[0] : null;
+}
+
+// Filter run group rows by selected property
+function filterRunByProperty(prop) {
+  const r = window._runGroupResults;
+  if (!r) return;
+
+  const filter = rec => !prop || (rec.referenceId || '').startsWith(prop);
+
+  const successRows = r.succeeded.filter(filter);
+  const pendingRows = r.pending.filter(filter);
+  const failedRows  = r.failed.filter(filter);
+
+  document.getElementById('rows-success').innerHTML = successRows.length
+    ? successRows.map(rec => resultRowHTML(rec, 'success')).join('')
+    : '<div class="empty-state">No successful records for this property.</div>';
+  document.getElementById('rows-pending').innerHTML = pendingRows.length
+    ? pendingRows.map(rec => resultRowHTML(rec, 'pending')).join('')
+    : '<div class="empty-state">No pending jobs.</div>';
+  document.getElementById('rows-failure').innerHTML = failedRows.length
+    ? failedRows.map(rec => resultRowHTML(rec, 'failure')).join('')
+    : '<div class="empty-state">No failures for this property.</div>';
+}
+
+// Sync all pending jobs across a run group
+function syncRunGroup(logIds) {
+  showToast('Syncing pending jobs…');
+  let remaining = logIds.length;
+  let totalResolved = 0;
+  logIds.forEach(logId => {
+    google.script.run
+      .withSuccessHandler(result => {
+        remaining--;
+        totalResolved += (result && result.resolved) ? result.resolved : 0;
+        if (remaining === 0) {
+          const msg = totalResolved > 0
+            ? 'Resolved ' + totalResolved + ' job(s) — reloading…'
+            : (result && result.alreadyResolved)
+              ? 'All entries already resolved.'
+              : 'No jobs resolved — they may have expired. Run the sheet Sync first.';
+          showToast(msg);
+          setTimeout(() => fetchLogList(), 600);
+        }
+      })
+      .withFailureHandler(e => {
+        remaining--;
+        showToast('Sync error: ' + e.message);
+      })
+      .syncPendingJobs(logId);
+  });
+}
+
+
+// ── _renderSingleEntry — extracted from old loadEntry ─────────
+// (was inline — now a named function so loadEntry() stays clean)
+
+function _renderSingleEntry(entry, id, area) {
+  const results    = entry.results || [];
+  const succeeded  = results.filter(r => r.successful === true);
+  const pending    = results.filter(r => r.successful == null && r.jobId);
+  const failed     = results.filter(r => r.successful === false);
+  const total      = results.length;
+  const hasPending = pending.length > 0;
+  const allOk      = failed.length === 0 && !hasPending && total > 0;
+  const countClass = hasPending ? 'pending' : (!allOk && succeeded.length === 0) ? 'failed' : !allOk ? 'partial' : '';
+  const statusText = hasPending ? `Pending ${pending.length}/${total}` : `Success ${succeeded.length}/${total}`;
+  const envClass   = entry.env === 'LIVE' ? 'env-live' : 'env-import';
+  const envText    = entry.env === 'LIVE' ? 'LIVE' : 'IMPORT';
+
+  const successRows = succeeded.length ? succeeded.map(r => resultRowHTML(r,'success')).join('') : '<div class="empty-state">No successful records in this batch.</div>';
+  const pendingRows = pending.length   ? pending.map(r => resultRowHTML(r,'pending')).join('')   : '<div class="empty-state">No pending jobs.</div>';
+  const failureRows = failed.length    ? failed.map(r => resultRowHTML(r,'failure')).join('')    : '<div class="empty-state">No failures recorded.</div>';
+
+  const syncBtn = hasPending
+    ? `<button class="sync-pending-btn" onclick="syncPendingJobs('${id}')">⏳ Sync ${pending.length} Pending Job${pending.length > 1 ? 's' : ''} → Check Status</button>`
+    : '';
+
+  area.innerHTML = `
+    <div class="stats-bar">
+      <div class="stat-chip ok"><span class="stat-num">${succeeded.length}</span><span class="stat-lbl">Resolved</span></div>
+      <div class="stat-chip pend"><span class="stat-num">${pending.length}</span><span class="stat-lbl">Pending</span></div>
+      <div class="stat-chip fail"><span class="stat-num">${failed.length}</span><span class="stat-lbl">Failed</span></div>
+    </div>
+    <div class="audit-meta">
+      <div class="meta-top">
+        <span class="meta-object">${entry.object || 'Unknown'}</span>
+        <span class="badge-type">LOAD</span>
+        <span class="badge-count ${countClass}">${statusText}</span>
+        <span class="env-pill ${envClass}" style="font-size:7px;padding:2px 7px;">${envText}</span>
+      </div>
+      <div class="meta-line">📅 ${entry.timestamp || '—'}</div>
+      <div class="meta-line">BY <strong>${entry.user || 'Unknown'}</strong></div>
+    </div>
+    ${syncBtn}
+    <div class="result-group success open" id="group-success">
+      <div class="result-group-header" onclick="toggleGroup('group-success')"><span>✅ SUCCESSFULLY LOADED ${succeeded.length}</span><span id="chev-success">▲</span></div>
+      <div class="result-group-body">
+        <input type="text" class="group-search" placeholder="Search by Reference or ID…" oninput="filterGroup('group-success', this.value)">
+        <div id="rows-success">${successRows}</div>
+      </div>
+    </div>
+    <div class="result-group pending open" id="group-pending">
+      <div class="result-group-header" onclick="toggleGroup('group-pending')"><span>⏳ PENDING ${pending.length}</span><span id="chev-pending">▲</span></div>
+      <div class="result-group-body">
+        <input type="text" class="group-search" placeholder="Search by Reference or Job ID…" oninput="filterGroup('group-pending', this.value)">
+        <div id="rows-pending">${pendingRows}</div>
+      </div>
+    </div>
+    <div class="result-group failure open" id="group-failure">
+      <div class="result-group-header" onclick="toggleGroup('group-failure')"><span>❌ NEEDS ATTENTION ${failed.length}</span><span id="chev-failure">▲</span></div>
+      <div class="result-group-body"><div id="rows-failure">${failureRows}</div></div>
+    </div>
+    <div class="debug-section" id="dbg-payload">
+      <div class="debug-header" onclick="toggleDebug('dbg-payload')"><span>🔧 PAYLOAD SENT</span><span id="chev-payload">▼</span></div>
+      <div class="debug-body">
+        <div class="debug-raw-bar"><span class="debug-raw-label">Raw Data</span><button class="copy-btn" id="copy-payload" onclick="copyDebugText('payload-pre','copy-payload')">Copy</button></div>
+        <pre id="payload-pre" class="debug-pre">${safeJson(entry.payload)}</pre>
+      </div>
+    </div>
+    <div class="debug-section" id="dbg-resp">
+      <div class="debug-header" onclick="toggleDebug('dbg-resp')"><span>🔧 RESPONSE RECEIVED</span><span id="chev-resp">▼</span></div>
+      <div class="debug-body">
+        <div class="debug-raw-bar"><span class="debug-raw-label">Raw Data</span><button class="copy-btn" id="copy-resp" onclick="copyDebugText('resp-pre','copy-resp')">Copy</button></div>
+        <pre id="resp-pre" class="debug-pre">${safeJson(entry.response)}</pre>
+      </div>
+    </div>`;
+}
+
+</script>
