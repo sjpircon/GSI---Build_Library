@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <base target="_top">
+  <style>
+    /* ── Brand Tokens (2026 Brand Spec) ──────────────────────── */
+    :root {
+      --sky-15:    #CDE9F9;
+      --sky-45:    #0F97FF;
+      --sky-75:    #08428D;
+      --street-15: #EDF0F4;
+      --street-30: #D0D7E2;
+      --street-90: #1E2430;
+      --grass-45:  #22D195;
+      --grass-75:  #0A654B;
+      --sand:      #F0F0EB;
+      --error-bg:  #FDECEA;
+      --error-bdr: #E53935;
+      --error-txt: #B71C1C;
+      --warn-bg:   #FFF8F0;
+      --warn-bdr:  #F5A623;
+      --warn-txt:  #A05E00;
+      --text-dark: #1E2430;
+      --text-muted:#73879A;
+      --border:    #D0D7E2;
+      --font:      "Helvetica Neue", Helvetica, Arial, sans-serif;
+      --radius:    4px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font); }
+
+    body {
+      background: #fff;
+      color: var(--text-dark);
+      font-size: 13px;
+      padding: 24px;
+    }
+
+    /* ── Eyebrow + Title ─────────────────────────────────────── */
+    .eyebrow {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--sky-45);
+      margin-bottom: 6px;
+    }
+    h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 18px;
+    }
+
+    /* ── Copy-detected warning banner ───────────────────────── */
+    .copy-warning {
+      display: none;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      border: 1px solid var(--error-bdr);
+      background: var(--error-bg);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--error-txt);
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+    .copy-warning.show { display: flex; }
+    .copy-warning-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Active banner ───────────────────────────────────────── */
+    #banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+      border: 1px solid #4CAF50;
+      background: #E6F4EA;
+      font-size: 12px;
+      font-weight: 700;
+      color: #2E7D32;
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+    #banner.LIVE { background: #E6F4EA; border-color: #4CAF50; color: #2E7D32; }
+    #banner.none { background: var(--street-15); border-color: var(--border); color: var(--text-muted); }
+
+    .banner-dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 3px;
+      background: #4CAF50;
+    }
+    #banner.none .banner-dot { background: var(--text-muted); }
+
+    /* ── Switch row ──────────────────────────────────────────── */
+    #switchRow { display: none; margin-bottom: 16px; }
+
+    #switchBtn {
+      width: 100%;
+      background: #fff;
+      border: 1.5px solid var(--border);
+      border-left: 4px solid var(--sky-75);
+      border-radius: var(--radius);
+      padding: 11px 14px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-dark);
+      text-align: left;
+      cursor: pointer;
+      transition: opacity 0.12s;
+    }
+    #switchBtn:hover { opacity: 0.88; }
+    #switchBtn.import-switch { border-left-color: var(--warn-bdr); }
+    #switchBtn .env-import { color: var(--warn-txt); }
+    #switchBtn .env-live   { color: var(--sky-75); }
+
+    /* ── Tabs ────────────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 20px;
+    }
+
+    .tab {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 10px 10px 12px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-muted);
+      background: var(--street-15);
+      border: 1px solid transparent;
+      border-bottom: none;
+      border-radius: var(--radius) var(--radius) 0 0;
+      transition: color 0.15s;
+      min-height: 64px;
+    }
+    .tab.on {
+      background: #fff;
+      color: var(--text-dark);
+      border-color: var(--border);
+      margin-bottom: -2px;
+    }
+
+    .tab-label { display: block; line-height: 1; }
+
+    .badge {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 8px;
+      color: #fff;
+      background: var(--text-muted);
+      letter-spacing: 0.3px;
+      min-width: 28px;
+    }
+    .badge.active-badge { background: #4CAF50; }
+    .badge.live-active  { background: #4CAF50; }
+    .badge.saved-import { background: var(--warn-bdr); }
+    .badge.saved-live   { background: var(--sky-75); }
+    .badge.empty        { visibility: hidden; }
+    .panel { display: none; }
+    .panel.on { display: block; }
+
+    /* ── Status strip ────────────────────────────────────────── */
+    .strip {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: var(--radius);
+      border: 1px solid;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+    .strip-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+    .strip.green { background: #E6F4EA; border-color: #4CAF50;        color: #2E7D32; }
+    .strip.green .strip-dot { background: #4CAF50; }
+    .strip.grey  { background: var(--street-15); border-color: var(--border); color: var(--text-muted); }
+    .strip.grey  .strip-dot { background: var(--text-muted); }
+    .strip.warn  { background: var(--warn-bg);  border-color: var(--warn-bdr); color: var(--warn-txt); }
+    .strip.warn  .strip-dot { background: var(--warn-bdr); }
+    .strip.red   { background: var(--error-bg); border-color: var(--error-bdr); color: var(--error-txt); }
+    .strip.red   .strip-dot { background: var(--error-bdr); }
+
+    /* ── Form fields ─────────────────────────────────────────── */
+    .field { margin-bottom: 14px; }
+
+    label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dark);
+      margin-bottom: 5px;
+    }
+
+    input {
+      width: 100%;
+      height: 42px;
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 14px;
+      color: var(--text-dark);
+      background: var(--street-15);
+      transition: border-color 0.15s, background 0.15s;
+    }
+    input:focus {
+      outline: none;
+      border-color: var(--sky-75);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(8,66,141,0.1);
+    }
+    input::placeholder { color: var(--text-muted); font-size: 13px; }
+
+    /* ── Panel footer ────────────────────────────────────────── */
+    .panel-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .btn-primary {
+      background: var(--warn-bdr);
+      color: #fff;
+      border: none;
+      padding: 11px 26px;
+      border-radius: var(--radius);
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:hover     { opacity: 0.88; }
+    .btn-primary:disabled  { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary.live-mode { background: var(--sky-75); }
+
+    .panel-msg {
+      font-size: 12px;
+      font-weight: 700;
+      display: none;
+      margin-right: auto;
+    }
+
+    /* ── Footer note ─────────────────────────────────────────── */
+    .footer-note {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 14px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="eyebrow">Security Setup</div>
+  <h2>API Credentials</h2>
+
+  <!-- ── Copy-detected warning ─────────────────────────────── -->
+  <!-- Shown when _assertNotCopied() detects this sheet is a copy
+       and has wiped the inherited credentials. Hidden by default. -->
+  <div class="copy-warning" id="copyWarning">
+    <span class="copy-warning-icon">🚫</span>
+    <div>
+      <strong>Copied spreadsheet detected.</strong><br>
+      Credentials have been cleared for security. Please enter new credentials for this environment below.
+    </div>
+  </div>
+
+  <!-- Active set banner -->
+  <div id="banner" class="none">
+    <span class="banner-dot"></span>
+    <span id="bannerText">Loading…</span>
+  </div>
+
+  <!--
+    Switch row — sits between banner and tabs.
+    Shown only when the inactive env has saved credentials.
+    Button colour reflects which env you are switching TO.
+  -->
+  <div id="switchRow">
+    <button id="switchBtn" onclick="doActivateOther()">▶ …</button>
+  </div>
+
+  <!-- ── Tabs ─────────────────────────────────────────────── -->
+  <div class="tabs">
+    <div class="tab on" id="tabIMPORT" onclick="showTab('IMPORT')">
+      <span class="tab-label">💡 IMPORT</span>
+      <span class="badge empty" id="badgeIMPORT">—</span>
+    </div>
+    <div class="tab" id="tabLIVE" onclick="showTab('LIVE')">
+      <span class="tab-label">🚀 LIVE</span>
+      <span class="badge empty" id="badgeLIVE">—</span>
+    </div>
+  </div>
+
+  <!-- ── IMPORT Panel ───────────────────────────────────────── -->
+  <div class="panel on" id="panelIMPORT">
+    <div class="strip red" id="stripIMPORT">
+      <span class="strip-dot"></span>
+      <span id="stripTextIMPORT">No credentials saved yet.</span>
+    </div>
+    <div class="field">
+      <label>Developer ID</label>
+      <input type="text" id="devIdIMPORT" placeholder="e.g. 06b0b719-…">
+    </div>
+    <div class="field">
+      <label>Client ID</label>
+      <input type="text" id="clientIdIMPORT">
+    </div>
+    <div class="field">
+      <label>Client Secret</label>
+      <input type="password" id="secretIMPORT" placeholder="Enter to save or update">
+    </div>
+    <div class="panel-footer">
+      <span class="panel-msg" id="msgIMPORT"></span>
+      <button class="btn-primary" id="saveBtnIMPORT" onclick="doSave('IMPORT')">Save IMPORT</button>
+    </div>
+  </div>
+
+  <!-- ── LIVE Panel ─────────────────────────────────────────── -->
+  <div class="panel" id="panelLIVE">
+    <div class="strip red" id="stripLIVE">
+      <span class="strip-dot"></span>
+      <span id="stripTextLIVE">No credentials saved yet.</span>
+    </div>
+    <div class="field">
+      <label>Developer ID</label>
+      <input type="text" id="devIdLIVE" placeholder="e.g. 06b0b719-…">
+    </div>
+    <div class="field">
+      <label>Client ID</label>
+      <input type="text" id="clientIdLIVE">
+    </div>
+    <div class="field">
+      <label>Client Secret</label>
+      <input type="password" id="secretLIVE" placeholder="Enter to save or update">
+    </div>
+    <div class="panel-footer">
+      <span class="panel-msg" id="msgLIVE"></span>
+      <button class="btn-primary live-mode" id="saveBtnLIVE" onclick="doSave('LIVE')">Save LIVE</button>
+    </div>
+  </div>
+
+  <p class="footer-note">🔒 Credentials are stored securely in this spreadsheet's properties.</p>
+
+  <script>
+    // ── Local state cache ─────────────────────────────────────
+    var st = {
+      activeSet: 'IMPORT',
+      devId: '',
+      IMPORT: { clientId: '', company: '', saved: false },
+      LIVE:   { clientId: '', company: '', saved: false }
+    };
+
+    // ── Boot: load saved settings from Apps Script ────────────
+    window.onload = function() {
+      google.script.run
+        .withSuccessHandler(onSettingsLoaded)
+        .withFailureHandler(function(e) {
+          document.getElementById('bannerText').textContent = 'Error loading: ' + e.message;
+        })
+        .getSettingsForUI();
+    };
+
+    function onSettingsLoaded(s) {
+      st = s || st;
+
+      // ── Copy detection ──────────────────────────────────────
+      // If the backend wiped credentials because this sheet is a
+      // copy, show the warning banner and clear the active banner
+      // so the user isn't confused by a "loading" state.
+      if (st.copiedWarning) {
+        document.getElementById('copyWarning').classList.add('show');
+        // Reset banner to neutral — no active env until new creds saved
+        var banner = document.getElementById('banner');
+        banner.className = 'none';
+        document.getElementById('bannerText').textContent = 'No credentials — please save new credentials below.';
+        // Don't call redraw() with stale state; return early
+        return;
+      }
+
+      document.getElementById('devIdIMPORT').value    = st.devId || '';
+      document.getElementById('devIdLIVE').value      = st.devId || '';
+      document.getElementById('clientIdIMPORT').value = st.IMPORT.clientId || '';
+      document.getElementById('clientIdLIVE').value   = st.LIVE.clientId   || '';
+      redraw();
+    }
+
+    // ── Tab switching ─────────────────────────────────────────
+    function showTab(env) {
+      ['IMPORT','LIVE'].forEach(function(e) {
+        var on = (e === env);
+        document.getElementById('tab'   + e).className = 'tab'   + (on ? ' on' : '');
+        document.getElementById('panel' + e).className = 'panel' + (on ? ' on' : '');
+      });
+    }
+
+    // ── Full UI redraw ────────────────────────────────────────
+    function redraw() {
+      var active   = st.activeSet;
+      var inactive = (active === 'IMPORT') ? 'LIVE' : 'IMPORT';
+
+      // ── Active banner ──────────────────────────────────────
+      var banner = document.getElementById('banner');
+      banner.className = active || 'none';
+      var co = (st[active] || {}).company || '';
+      document.getElementById('bannerText').innerHTML =
+        'ACTIVE: ' + active +
+        (co ? '<br>' + co : '') +
+        '<br>All API calls will use these credentials.';
+
+      // ── Switch row ─────────────────────────────────────────
+      var inactiveSaved = !!(st[inactive] || {}).saved;
+      var switchRow = document.getElementById('switchRow');
+      var switchBtn = document.getElementById('switchBtn');
+
+      if (inactiveSaved) {
+        var inactiveCo = (st[inactive] || {}).company || inactive;
+        var envClass   = (inactive === 'LIVE') ? 'env-live' : 'env-import';
+        switchRow.style.display  = 'block';
+        switchBtn.innerHTML      = '▶ Switch to <span class="' + envClass + '">' + inactive + '</span> — ' + inactiveCo;
+        switchBtn.className      = (inactive === 'IMPORT') ? 'import-switch' : '';
+        switchBtn.dataset.target = inactive;
+      } else {
+        switchRow.style.display = 'none';
+      }
+
+      // ── Per-environment: badges + strips ──────────────────
+      ['IMPORT','LIVE'].forEach(function(env) {
+        var envSt    = st[env] || {};
+        var saved    = !!envSt.saved;
+        var isActive = (active === env);
+        var isLive   = (env === 'LIVE');
+
+        var badge = document.getElementById('badge' + env);
+        if (isActive) {
+          badge.textContent = 'ACTIVE';
+          badge.className   = 'badge ' + (isLive ? 'live-active' : 'active-badge');
+        } else if (saved) {
+          badge.textContent = 'Saved';
+          badge.className   = 'badge ' + (isLive ? 'saved-live' : 'saved-import');
+        } else {
+          badge.textContent = '—';
+          badge.className   = 'badge empty';
+        }
+
+        var strip = document.getElementById('strip' + env);
+        var txt   = document.getElementById('stripText' + env);
+
+        if (isActive && saved) {
+          strip.style.display = 'none';
+        } else if (isActive && !saved) {
+          strip.className = 'strip red';
+          strip.style.display = '';
+          txt.textContent = '⚠️ ACTIVE but no credentials saved — API calls will fail until you save below.';
+        } else if (!isActive && saved) {
+          strip.style.display = 'none';
+        } else {
+          strip.className = 'strip red';
+          strip.style.display = '';
+          txt.textContent = 'No credentials saved yet for this environment.';
+        }
+      });
+    }
+
+    // ── Activate the OTHER (inactive) environment ─────────────
+    function doActivateOther() {
+      var env = document.getElementById('switchBtn').dataset.target;
+      if (!env) return;
+      doActivate(env);
+    }
+
+    function doActivate(env) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.success) { st.activeSet = env; redraw(); }
+          else { alert(res.message || 'Could not switch.'); }
+        })
+        .withFailureHandler(function(e) { alert('Switch failed: ' + e.message); })
+        .switchActiveSet(env);
+    }
+
+    // ── Save + Verify ─────────────────────────────────────────
+    function doSave(env) {
+      var devId    = document.getElementById('devId'    + env).value.trim();
+      var clientId = document.getElementById('clientId' + env).value.trim();
+      var secret   = document.getElementById('secret'   + env).value.trim();
+
+      if (!devId)    { showMsg(env, '⚠ Developer ID is required.',  'red'); return; }
+      if (!clientId) { showMsg(env, '⚠ Client ID is required.',     'red'); return; }
+      if (!secret)   { showMsg(env, '⚠ Client Secret is required.', 'red'); return; }
+
+      var btn = document.getElementById('saveBtn' + env);
+      btn.disabled    = true;
+      btn.textContent = 'Verifying…';
+      showMsg(env, '', null);
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.disabled    = false;
+          btn.textContent = 'Save ' + env;
+
+          if (res.success) {
+            // Hide copy warning if it was showing — new creds just saved
+            document.getElementById('copyWarning').classList.remove('show');
+
+            st[env].clientId = clientId;
+            st[env].company  = res.company || '';
+            st[env].saved    = true;
+            st.devId         = devId;
+            if (!st.activeSet || st.activeSet === env) st.activeSet = env;
+            document.getElementById('secret' + env).value = '';
+            showMsg(env, '✓ Connected: ' + (res.company || env), 'green');
+            redraw();
+          } else {
+            showMsg(env, '✗ ' + (res.message || 'Unknown error.'), 'red');
+          }
+        })
+        .withFailureHandler(function(e) {
+          btn.disabled    = false;
+          btn.textContent = 'Save ' + env;
+          showMsg(env, '✗ ' + e.message, 'red');
+        })
+        .saveAndVerify({
+          set:          env,
+          devId:        devId,
+          clientId:     clientId,
+          clientSecret: secret
+        });
+    }
+
+    // ── Inline message helper ─────────────────────────────────
+    function showMsg(env, text, type) {
+      var el = document.getElementById('msg' + env);
+      el.textContent   = text;
+      el.style.display = text ? 'inline' : 'none';
+      el.style.color   = type === 'green' ? 'var(--grass-75)'  :
+                         type === 'red'   ? 'var(--error-txt)' : 'inherit';
+    }
+  </script>
+</body>
+</html>
