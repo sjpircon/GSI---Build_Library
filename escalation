@@ -110,10 +110,9 @@ function submitEscalation() {
   ]);
 
   // ── Send Slack notification (non-fatal if it fails) ─────────
-  const webhookUrl = props.getProperty('SLACK_WEBHOOK_URL');
-  if (webhookUrl) {
-    _sendSlackEscalation(webhookUrl, data, submittedBy);
-  }
+  const webhookUrl = props.getProperty('SLACK_WEBHOOK_URL') ||
+    'https://hooks.slack.com/triggers/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';
+  _sendSlackEscalation(webhookUrl, data, submittedBy);
 
   // Clean up the draft so stale data can't be resubmitted
   props.deleteProperty(ESCALATION_DRAFT_KEY);
@@ -121,16 +120,22 @@ function submitEscalation() {
 
 
 /**
- * Sends a formatted Block Kit message to Slack for a new escalation.
+ * Sends a Slack notification for a new escalation.
+ * Uses plain text format required by Slack Workflow trigger URLs
+ * (hooks.slack.com/triggers/...). Block Kit is not supported by Workflow
+ * triggers and will be silently ignored.
+ *
  * Failures are logged but do NOT throw — a Slack hiccup should never
  * block the sheet write from being confirmed to the user.
  *
- * @param {string} webhookUrl   — Slack incoming webhook URL
+ * @param {string} webhookUrl   — Slack Workflow trigger URL
  * @param {Object} data         — Parsed escalation draft object
  * @param {string} submittedBy  — Email of the submitter
  */
 function _sendSlackEscalation(webhookUrl, data, submittedBy) {
-  const payload = {
+  // Keys must exactly match the variable names defined in the Slack Workflow trigger.
+  // Any key mismatch results in that variable rendering empty in the channel message.
+  const slackPayload = {
     customerName:    data.customerName,
     pmreoLink:       data.pmreoLink,
     spreadsheetLink: data.spreadsheetLink,
@@ -148,7 +153,7 @@ function _sendSlackEscalation(webhookUrl, data, submittedBy) {
     UrlFetchApp.fetch(webhookUrl, {
       method:             'post',
       contentType:        'application/json',
-      payload:            JSON.stringify(payload),
+      payload:            JSON.stringify(slackPayload),
       muteHttpExceptions: true
     });
   } catch (e) {
