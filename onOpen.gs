@@ -20,6 +20,11 @@
 //                                 to populate per-step badge counts
 // ============================================================
 
+function doGet() {
+  return HtmlService.createHtmlOutputFromFile('EscalationGuide')
+    .setTitle('BSI Escalation Guide')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
 
 // submitEscalation() and saveEscalationDraft() are defined in escalation.gs
 
