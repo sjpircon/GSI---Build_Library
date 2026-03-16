@@ -12,7 +12,7 @@
 <body style="margin:0;background:#f8f9fa;">
   <div id="root"></div>
   <script type="text/babel">
-    const { useState } = React;
+    const { useState, useRef } = React;
 
     // ─── CONFIG ───────────────────────────────────────────────────────────────
     const APPS_SCRIPT_URL = "https://script.google.com/a/macros/appfolio.com/s/AKfycbwD9yT98OklRPuDxoBIIBHja-cdJq41ORQKu_bPdDSCI1PAym6V1bm3FeNyb2w5esNUEg/exec"; // ← paste your deployed web app URL here
@@ -101,8 +101,10 @@
       const [screenshots, setScreenshots] = useState("");
       const [submitting, setSubmitting] = useState(false);
       const [error, setError] = useState(null);
+      const isSubmittingRef = useRef(false);
 
       function handleSubmit() {
+        if (isSubmittingRef.current) return; // hard block — ref updates synchronously unlike state
         if (!customerName.trim() || !pmreoLink.trim() || !spreadsheetLink.trim() || !databaseLink.trim()) {
           setError("Please fill out all Client Details fields before submitting.");
           return;
@@ -113,16 +115,18 @@
         }
         setError(null);
         setSubmitting(true);
+        isSubmittingRef.current = true;
 
         // Step 1: save form data into script properties first
         // Step 2: submitEscalation reads from properties server-side
         // This avoids google.script.run argument serialization issues in modals
+        // Step 1: save draft to PropertiesService
+        // Step 2: read and submit server-side (no arg serialization issues)
         google.script.run
           .withSuccessHandler(() => {
-            // Properties saved — now trigger the actual submission
             google.script.run
-              .withSuccessHandler(() => { setSubmitting(false); onSuccess(); })
-              .withFailureHandler((err) => { setSubmitting(false); setError("Submission failed: " + (err.message || "Unknown error.")); })
+              .withSuccessHandler(() => { isSubmittingRef.current = false; setSubmitting(false); onSuccess(); })
+              .withFailureHandler((err) => { isSubmittingRef.current = false; setSubmitting(false); setError("Submission failed: " + (err.message || "Unknown error.")); })
               .submitEscalation();
           })
           .withFailureHandler((err) => {
