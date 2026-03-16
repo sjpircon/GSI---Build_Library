@@ -20,60 +20,8 @@
 //                                 to populate per-step badge counts
 // ============================================================
 
-function doGet() {
-  return HtmlService.createHtmlOutputFromFile('EscalationGuide')
-    .setTitle('BSI Escalation Guide')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-      SpreadsheetApp.getUi().showModalDialog(html, 'Get Help — AppFolio Load Tool');
 
-}
-
-
-function submitEscalation(raw) {
-  const d = (typeof raw === 'string') ? JSON.parse(raw) : raw;
-
-  const customerName    = d.customerName    || '';
-  const pmreoLink       = d.pmreoLink       || '';
-  const spreadsheetLink = d.spreadsheetLink || '';
-  const databaseLink    = d.databaseLink    || '';
-  const issueType       = d.issueType       || '';
-  const objectType      = d.objectType      || '';
-  const description     = d.description     || '';
-  const screenshots     = d.screenshots     || 'N/A';
-  const timestamp       = d.timestamp       || '';
-  const status          = d.status          || 'New';
-  const submittedBy     = Session.getActiveUser().getEmail();
-
-  const sheet = SpreadsheetApp.openById("1V7P6HwLtVLK76oyqQAVug1gruQ23S69gSEz_lFIIhxA")
-    .getSheetByName("GSI Feedback2");
-
-  sheet.appendRow([
-    customerName, pmreoLink, spreadsheetLink, databaseLink,
-    issueType, objectType, description, screenshots,
-    submittedBy, timestamp, status
-  ]);
-
-  const slackPayload = {
-    text: `*New Load Tool Report*\n*Customer:* ${customerName}\n*Issue Type:* ${issueType}\n*Object Type:* ${objectType}\n*Description:* ${description}\n*Screenshots:* ${screenshots}\n*PMREO:* ${pmreoLink}\n*Spreadsheet:* ${spreadsheetLink}\n*Database:* ${databaseLink}\n*Submitted By:* ${submittedBy}\n*Timestamp:* ${timestamp}\n*Status:* ${status}`
-  };
-
-  UrlFetchApp.fetch("https://hooks.slack.com/triggers/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", {
-    method: "post",
-    contentType: "application/json",
-    payload: JSON.stringify(slackPayload)
-  });
-}
-
-  const slackPayload = {
-    text: `*New Load Tool Report*\n*Customer:* ${customerName}\n*Issue Type:* ${issueType}\n*Object Type:* ${objectType}\n*Description:* ${description}\n*Screenshots:* ${screenshots}\n*PMREO:* ${pmreoLink}\n*Spreadsheet:* ${spreadsheetLink}\n*Database:* ${databaseLink}\n*Submitted By:* ${submittedBy}\n*Timestamp:* ${timestamp}\n*Status:* ${status}`
-  };
-
-  UrlFetchApp.fetch("https://hooks.slack.com/triggers/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", {
-    method: "post",
-    contentType: "application/json",
-    payload: JSON.stringify(slackPayload)
-  });
-
+// submitEscalation() and saveEscalationDraft() are defined in escalation.gs
 
 function showEscalationGuide() {
   const html = HtmlService.createHtmlOutputFromFile('EscalationGuide')
