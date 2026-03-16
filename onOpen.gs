@@ -9,8 +9,9 @@
 // STEP STATE PERSISTENCE
 // ──────────────────────
 // The UnifiedSidebar tracks workflow progress (none → prepped → loaded)
-// per object type. States are saved to UserProperties so they survive
+// per object type. States are saved to DocumentProperties so they survive
 // sidebar reloads, tab switches, and browser refreshes.
+// Authoritative implementations: setupLogic.gs (saveStepStates / getStepStates / clearStepStates)
 //
 //   saveStepStates(statesJson)  — called by sidebar after any action
 //   getStepStates()             — called by sidebar on Load tab open
@@ -19,9 +20,72 @@
 //                                 to populate per-step badge counts
 // ============================================================
 
+function doGet() {
+  return HtmlService.createHtmlOutputFromFile('EscalationGuide')
+    .setTitle('BSI Escalation Guide')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+      SpreadsheetApp.getUi().showModalDialog(html, 'Get Help — AppFolio Load Tool');
+
+}
+
+
+function submitEscalation(raw) {
+  const d = (typeof raw === 'string') ? JSON.parse(raw) : raw;
+
+  const customerName    = d.customerName    || '';
+  const pmreoLink       = d.pmreoLink       || '';
+  const spreadsheetLink = d.spreadsheetLink || '';
+  const databaseLink    = d.databaseLink    || '';
+  const issueType       = d.issueType       || '';
+  const objectType      = d.objectType      || '';
+  const description     = d.description     || '';
+  const screenshots     = d.screenshots     || 'N/A';
+  const timestamp       = d.timestamp       || '';
+  const status          = d.status          || 'New';
+  const submittedBy     = Session.getActiveUser().getEmail();
+
+  const sheet = SpreadsheetApp.openById("1V7P6HwLtVLK76oyqQAVug1gruQ23S69gSEz_lFIIhxA")
+    .getSheetByName("GSI Feedback2");
+
+  sheet.appendRow([
+    customerName, pmreoLink, spreadsheetLink, databaseLink,
+    issueType, objectType, description, screenshots,
+    submittedBy, timestamp, status
+  ]);
+
+  const slackPayload = {
+    text: `*New Load Tool Report*\n*Customer:* ${customerName}\n*Issue Type:* ${issueType}\n*Object Type:* ${objectType}\n*Description:* ${description}\n*Screenshots:* ${screenshots}\n*PMREO:* ${pmreoLink}\n*Spreadsheet:* ${spreadsheetLink}\n*Database:* ${databaseLink}\n*Submitted By:* ${submittedBy}\n*Timestamp:* ${timestamp}\n*Status:* ${status}`
+  };
+
+  UrlFetchApp.fetch("https://hooks.slack.com/triggers/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", {
+    method: "post",
+    contentType: "application/json",
+    payload: JSON.stringify(slackPayload)
+  });
+}
+
+  const slackPayload = {
+    text: `*New Load Tool Report*\n*Customer:* ${customerName}\n*Issue Type:* ${issueType}\n*Object Type:* ${objectType}\n*Description:* ${description}\n*Screenshots:* ${screenshots}\n*PMREO:* ${pmreoLink}\n*Spreadsheet:* ${spreadsheetLink}\n*Database:* ${databaseLink}\n*Submitted By:* ${submittedBy}\n*Timestamp:* ${timestamp}\n*Status:* ${status}`
+  };
+
+  UrlFetchApp.fetch("https://hooks.slack.com/triggers/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", {
+    method: "post",
+    contentType: "application/json",
+    payload: JSON.stringify(slackPayload)
+  });
+
+
+function showEscalationGuide() {
+  const html = HtmlService.createHtmlOutputFromFile('EscalationGuide')
+    .setWidth(760)
+    .setHeight(600);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Get Help - AppFolio Load Tool');
+}
+
+
 
 function onOpen() {
-  const props   = PropertiesService.getUserProperties();
+  const props   = PropertiesService.getDocumentProperties();
   const env     = props.getProperty('AF_ACTIVE_SET') || 'IMPORT';
   const company = props.getProperty('AF_COMPANY_' + env) || 'Not Connected';
 
@@ -34,8 +98,10 @@ function onOpen() {
     .addItem('🧰  Open Toolbox',  'showUnifiedSidebar')        // Primary entry point
     .addSeparator()
     .addItem('🗑️  Reset Checklist', 'clearStepStates')          // Utility — resets sidebar progress badges
-    //.addItem('🔓  Release Occupancy Lock', 'forceReleaseOccupancyLock') // Recovery — clears stuck mutex
+    .addItem('🔓  Release Occupancy Lock', 'forceReleaseOccupancyLock') // Recovery — clears stuck mutex
     .addItem('⚡  Clear Dependencies',  'forceClearDependencies') // Recovery — marks all steps loaded so any action is accessible
+    .addSeparator()
+    .addItem('🆘  Escalation Guide',   'showEscalationGuide')  
     .addToUi();
 
   if (company !== 'Not Connected') {
@@ -81,26 +147,9 @@ function showApiSetupSidebar() {
 
 
 // ── Dashboard Data Providers ─────────────────────────────────
-// NOTE: getDashboardHeader is defined ONCE here. It was previously
-// duplicated at the bottom of this file — that duplicate has been
-// removed to prevent silent resolution conflicts in Apps Script.
-
-/**
- * Returns connection state and active environment for the sidebar header.
- * Called by UnifiedSidebar.html and SetupUI.html on load.
- */
-function getDashboardHeader() {
-  const props   = PropertiesService.getUserProperties();
-  const env     = props.getProperty('AF_ACTIVE_SET') || 'IMPORT';
-  const company = props.getProperty('AF_COMPANY_' + env) || 'Not Connected';
-  const devId   = props.getProperty('AF_DEV_ID') || '';
-  return {
-    env,
-    company,
-    connected: (company !== 'Not Connected'),
-    devId
-  };
-}
+// NOTE: getDashboardHeader() is defined in setupLogic.gs (authoritative).
+// It was previously duplicated here with UserProperties — that duplicate
+// has been removed. setupLogic.gs uses DocumentProperties (correct).
 
 /**
  * Reads every workflow sheet and returns a status summary per object type.
@@ -153,53 +202,27 @@ function getDashboardStatus() {
 
 
 // ── Step State Persistence ────────────────────────────────────
-// The UnifiedSidebar uses a WORKFLOW_STEPS array to track which
-// objects have been prepped / loaded. These functions persist that
-// state to UserProperties so it survives sidebar reloads.
-//
-// Key: STEP_STATES
-// Value: JSON string — shape: { steps: [...], checklist: {...} }
-//        (the sidebar owns the shape; these functions are intentionally
-//         shape-agnostic so they don't need updating when the sidebar
-//         evolves its state structure)
+// saveStepStates(), getStepStates(), clearStepStates() are defined in
+// setupLogic.gs using DocumentProperties (authoritative, shared state).
+// Duplicates that used UserProperties have been removed from this file.
 
 /**
- * Saves the sidebar's step progress to UserProperties.
- * Called by UnifiedSidebar.html after every Prep, Load, or Sync action.
- *
- * @param {string} statesJson — JSON string; shape managed by the sidebar
+ * Releases any active GAS LockService locks held by the occupancy loader.
+ * Safe to call when the spreadsheet appears stuck after an interrupted run.
+ * Called automatically by forceClearDependencies() and also exposed via
+ * wrapper.gs as a standalone recovery action.
  */
-function saveStepStates(statesJson) {
-  if (!statesJson) return;
+function forceReleaseOccupancyLock() {
   try {
-    // Validate it's parseable before saving — bad JSON would break
-    // the sidebar silently on next restore.
-    JSON.parse(statesJson);
-    PropertiesService.getUserProperties().setProperty('STEP_STATES', statesJson);
+    const lock = LockService.getDocumentLock();
+    lock.releaseLock();
   } catch (e) {
-    console.warn('saveStepStates: invalid JSON, not saved. ' + e.message);
+    // Lock may not currently be held — not an error condition
+    console.log('forceReleaseOccupancyLock: ' + e.message);
   }
-}
-
-/**
- * Returns the saved step progress JSON string, or null if nothing saved.
- * Called by UnifiedSidebar.html on Load tab open.
- *
- * @returns {string|null}
- */
-function getStepStates() {
-  return PropertiesService.getUserProperties().getProperty('STEP_STATES') || null;
-}
-
-/**
- * Clears all saved step progress — bound to "Reset Checklist" menu item.
- * Useful when starting a new onboarding project on the same sheet.
- */
-function clearStepStates() {
-  PropertiesService.getUserProperties().deleteProperty('STEP_STATES');
   SpreadsheetApp.getActive().toast(
-    'Workflow progress reset. Refresh the sidebar to see changes.',
-    '🗑️ Step Progress Cleared'
+    'Occupancy lock released.',
+    '🔓 Lock Released'
   );
 }
 
@@ -358,7 +381,7 @@ function getSheetSummary(stepId) {
 // the return value — the sidebar always received undefined.
 
 function confirmAndRun(callback, actionName) {
-  const props   = PropertiesService.getUserProperties();
+  const props   = PropertiesService.getDocumentProperties();
   const env     = props.getProperty('AF_ACTIVE_SET') || 'IMPORT';
   const company = props.getProperty('AF_COMPANY_' + env) || 'Unknown Client';
   const ui      = SpreadsheetApp.getUi();
