@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AppFolio Load Tool - BSI Escalation Guide</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;background:#f8f9fa;">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState } = React;
+
+    // ─── CONFIG ───────────────────────────────────────────────────────────────
+    const APPS_SCRIPT_URL = "https://script.google.com/a/macros/appfolio.com/s/AKfycbwD9yT98OklRPuDxoBIIBHja-cdJq41ORQKu_bPdDSCI1PAym6V1bm3FeNyb2w5esNUEg/exec"; // ← paste your deployed web app URL here
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const OBJECT_TYPES = ["Banks","Properties","Units","Owners","Owner Groups","Tenants","GL Accounts","Other"];
+
+    const categories = [
+      {
+        id: "bug", emoji: "🐛",
+        label: "Something in the tool isn't working",
+        sublabel: "Script errors, sidebar won't load, buttons not responding",
+        color: "#d93025", bg: "#fce8e6", border: "#f5c6c2",
+        issueType: "Bug / Script Error",
+        steps: [
+          { title: "Try these first", type: "checklist", items: ["Close and reopen the sidebar: Onboarding API → 🧰 Open Toolbox","If Tenants are stuck, use: Onboarding API → 🔓 Release Occupancy Lock","If Load steps are greyed out, use: Onboarding API → ⚡ Clear Dependencies","Refresh your browser tab and try again"] },
+          { title: "Ask a colleague", type: "info", body: "Check with a peer who has used the tool recently. If they've seen the same issue, that's a signal it needs to be reported." },
+          { title: "Still broken? Grab this info first", type: "checklist", items: ["Open the Audit tab in the sidebar - note the most recent Log Entry","Take a screenshot of the error or unexpected behavior","Note the object type you were working on (e.g. Banks, Tenants)","Note your environment: IMPORT or LIVE"] },
+          { title: "Submit a report", type: "action", body: "Fill out the form below. A lead will review it and either resolve it or escalate to engineering." },
+        ],
+      },
+      {
+        id: "upload", emoji: "📤",
+        label: "My data won't load (red rows or errors)",
+        sublabel: "Rows turning red after Prep, Load failing, API rejections",
+        color: "#e37400", bg: "#fef3e2", border: "#f9d9a0",
+        issueType: "Data Load Failure",
+        steps: [
+          { title: "Read the error on the red row", type: "info", body: "The red row will usually tell you exactly what's wrong - a missing field, a bad date format, or a dependency not yet loaded. Fix it in the sheet and run PREP again." },
+          { title: "Check your loading sequence", type: "checklist", items: ["GL Accounts synced first (Onboarding API → Sync GL Accounts)","Banks loaded before Properties","Owners loaded before Owner Groups","Properties + Units loaded before Tenants","All prior steps show green (Success) before moving on"] },
+          { title: "Check the Audit tab for more detail", type: "info", body: "Open the Audit tab in the sidebar. The most recent entry shows the raw response from AppFolio — look for an error message that gives more context than the row status." },
+          { title: "Ask a colleague", type: "info", body: "If the error message is unclear or the fix isn't obvious, check with a peer. Describe the object type and paste the error text." },
+          { title: "Still stuck? Submit a report", type: "action", body: "Fill out the form below so a lead can help diagnose." },
+        ],
+      },
+      {
+        id: "bsi", emoji: "💬",
+        label: "The tool is missing something or could work better",
+        sublabel: "Workflow gaps, confusing steps, feature ideas, edge cases",
+        color: "#1a73e8", bg: "#e8f0fe", border: "#aecbfa",
+        issueType: "BSI Feedback",
+        steps: [
+          { title: "Check the SOP first", type: "info", body: "Before flagging a gap, confirm the behavior isn't already covered in the BSI Build Data SOP. It may be documented under a different section." },
+          { title: "Note what you expected vs. what happened", type: "checklist", items: ["Which object or step were you working on?","What did you expect the tool to do?","What actually happened instead?","Is this a one-off or something you see repeatedly?","Do you have a workaround for now?"] },
+          { title: "Submit your feedback", type: "action", body: "Use the form below to log it. Feedback is reviewed weekly and prioritized based on frequency and impact." },
+        ],
+      },
+      {
+        id: "sop", emoji: "📄",
+        label: "The SOP is wrong or unclear",
+        sublabel: "Missing steps, outdated guidance, confusing instructions",
+        color: "#188038", bg: "#e6f4ea", border: "#a8d5b5",
+        issueType: "SOP Gap",
+        steps: [
+          { title: "Confirm it's actually a gap", type: "info", body: "Check whether the tool behavior you experienced matches what the SOP describes. If the SOP says one thing and the tool does another, that's a real gap worth flagging." },
+          { title: "Note the specifics", type: "checklist", items: ["Which SOP section or step is unclear or wrong?","What does it currently say?","What should it say or include instead?","Did this cause an actual issue during a load?"] },
+          { title: "Submit your feedback", type: "action", body: "Use the form below. SOP gaps are reviewed by the onboarding leads and corrected within 3 business days." },
+        ],
+      },
+    ];
+
+    const channelInfo = [
+      { icon: "📋", label: "Issue Report Form", desc: "For bugs and upload errors - feeds directly into the team issue log." },
+      { icon: "💡", label: "Feedback Form", desc: "For BSI feedback and SOP gaps - reviewed weekly by the onboarding leads." },
+      { icon: "📊", label: "Team Issue Log (Google Sheet)", desc: "Leads use this to triage, track status, and escalate to product when needed." },
+    ];
+
+    const inputStyle = {
+      width: "100%", boxSizing: "border-box", padding: "8px 10px",
+      fontSize: 13, borderRadius: 6, border: "1.5px solid #dadce0",
+      fontFamily: "'IBM Plex Sans', sans-serif", color: "#202124",
+      background: "#fff", marginTop: 4,
+    };
+    const labelStyle = { fontSize: 12, fontWeight: 600, color: "#3c4043", display: "block", marginBottom: 2 };
+    const dividerStyle = { border: "none", borderTop: "1.5px dashed #e0e0e0", margin: "14px 0" };
+
+    function SubmitForm({ cat, onSuccess }) {
+      // Client details
+      const [customerName, setCustomerName] = useState("");
+      const [pmreoLink, setPmreoLink] = useState("");
+      const [spreadsheetLink, setSpreadsheetLink] = useState("");
+      const [databaseLink, setDatabaseLink] = useState("");
+      // Issue details
+      const [objectType, setObjectType] = useState("");
+      const [description, setDescription] = useState("");
+      const [screenshots, setScreenshots] = useState("");
+      const [submitting, setSubmitting] = useState(false);
+      const [error, setError] = useState(null);
+
+      function handleSubmit() {
+        if (!customerName.trim() || !pmreoLink.trim() || !spreadsheetLink.trim() || !databaseLink.trim()) {
+          setError("Please fill out all Client Details fields before submitting.");
+          return;
+        }
+        if (!objectType || !description.trim()) {
+          setError("Please fill out Object Type and Description before submitting.");
+          return;
+        }
+        setError(null);
+        setSubmitting(true);
+
+        // Step 1: save form data into script properties first
+        // Step 2: submitEscalation reads from properties server-side
+        // This avoids google.script.run argument serialization issues in modals
+        google.script.run
+          .withSuccessHandler(() => {
+            // Properties saved — now trigger the actual submission
+            google.script.run
+              .withSuccessHandler(() => { setSubmitting(false); onSuccess(); })
+              .withFailureHandler((err) => { setSubmitting(false); setError("Submission failed: " + (err.message || "Unknown error.")); })
+              .submitEscalation();
+          })
+          .withFailureHandler((err) => {
+            setSubmitting(false);
+            setError("Submission failed: " + (err.message || "Unknown error."));
+          })
+          .saveEscalationDraft(
+            customerName,
+            pmreoLink,
+            spreadsheetLink,
+            databaseLink,
+            cat.issueType,
+            objectType,
+            description,
+            screenshots || "N/A",
+            new Date().toISOString()
+          );
+      }
+
+      return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+          {/* Client Details */}
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.9, color: "#9aa0a6" }}>Client Details</div>
+          <div>
+            <label style={labelStyle}>Customer Name *</label>
+            <input value={customerName} onChange={e => setCustomerName(e.target.value)}
+              placeholder="e.g. Acme Property Management" style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>PMREO Link *</label>
+            <input value={pmreoLink} onChange={e => setPmreoLink(e.target.value)}
+              placeholder="https://..." style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Spreadsheet Link *</label>
+            <input value={spreadsheetLink} onChange={e => setSpreadsheetLink(e.target.value)}
+              placeholder="https://docs.google.com/..." style={inputStyle} />
+          </div>
+          <div>
+            <label style={labelStyle}>Database Link *</label>
+            <input value={databaseLink} onChange={e => setDatabaseLink(e.target.value)}
+              placeholder="https://..." style={inputStyle} />
+          </div>
+
+          <hr style={dividerStyle} />
+
+          {/* Issue Details */}
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.9, color: "#9aa0a6" }}>Issue Details</div>
+
+          {/* Auto-classified issue type badge */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <label style={{ ...labelStyle, marginBottom: 0 }}>Issue Type</label>
+            <span style={{ background: cat.bg, color: cat.color, border: `1px solid ${cat.border}`, borderRadius: 5, padding: "2px 10px", fontSize: 12, fontWeight: 700 }}>
+              {cat.emoji} {cat.issueType}
+            </span>
+          </div>
+
+          <div>
+            <label style={labelStyle}>Object Type *</label>
+            <select value={objectType} onChange={e => setObjectType(e.target.value)} style={inputStyle}>
+              <option value="">Select object type…</option>
+              {OBJECT_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={labelStyle}>Description *</label>
+            <textarea value={description} onChange={e => setDescription(e.target.value)}
+              placeholder="Describe the issue, what you expected, and any error text."
+              rows={4} style={{ ...inputStyle, resize: "vertical", lineHeight: 1.5 }} />
+          </div>
+          <div>
+            <label style={labelStyle}>Screenshots (if relevant)</label>
+            <input value={screenshots} onChange={e => setScreenshots(e.target.value)}
+              placeholder="Paste a Drive link to any screenshots" style={inputStyle} />
+          </div>
+
+          {error && <div style={{ fontSize: 12, color: "#d93025", fontWeight: 600 }}>{error}</div>}
+          <button onClick={handleSubmit} disabled={submitting}
+            style={{ background: submitting ? "#9aa0a6" : cat.color, color: "#fff", border: "none", borderRadius: 7, padding: "9px 18px", fontSize: 13, fontWeight: 600, cursor: submitting ? "not-allowed" : "pointer", alignSelf: "flex-start" }}>
+            {submitting ? "Submitting…" : `Submit ${cat.issueType === "BSI Feedback" || cat.issueType === "SOP Gap" ? "Feedback" : "Report"} →`}
+          </button>
+        </div>
+      );
+    }
+
+    function App() {
+      const [active, setActive] = useState(null);
+      const [openStep, setOpenStep] = useState(null);
+      const [submitted, setSubmitted] = useState(false);
+      const cat = categories.find(c => c.id === active);
+
+      function handleBack() {
+        setActive(null);
+        setOpenStep(null);
+        setSubmitted(false);
+      }
+
+      return (
+        <div style={{ fontFamily: "'IBM Plex Sans', sans-serif", maxWidth: 780, margin: "0 auto", padding: "24px 16px", minHeight: "100vh" }}>
+          <div style={{ background: "#fff", borderRadius: 12, padding: "20px 24px", marginBottom: 20, boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, color: "#9aa0a6", marginBottom: 4 }}>AppFolio Load Tool</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "#202124" }}>What's going wrong?</div>
+            <div style={{ fontSize: 13, color: "#5f6368", marginTop: 4 }}>Pick the situation that best describes your issue and follow the steps.</div>
+          </div>
+
+          {!active && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {categories.map(c => (
+                <button key={c.id} onClick={() => { setActive(c.id); setOpenStep(0); setSubmitted(false); }}
+                  style={{ background: "#fff", border: "1.5px solid #e0e0e0", borderLeft: `5px solid ${c.color}`, borderRadius: 10, padding: "16px 20px", textAlign: "left", cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: "#202124" }}>{c.emoji} {c.label}</div>
+                  <div style={{ fontSize: 12, color: "#5f6368", marginTop: 3 }}>{c.sublabel}</div>
+                </button>
+              ))}
+              <div style={{ background: "#fff", borderRadius: 10, border: "1px solid #e0e0e0", padding: "16px 20px", marginTop: 6 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.8, color: "#9aa0a6", marginBottom: 12 }}>How escalation works</div>
+                {channelInfo.map((ch, i) => (
+                  <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start", fontSize: 13, marginBottom: 8 }}>
+                    <span style={{ fontSize: 18 }}>{ch.icon}</span>
+                    <div><span style={{ fontWeight: 600, color: "#202124" }}>{ch.label}</span><span style={{ color: "#5f6368" }}> - {ch.desc}</span></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {cat && (
+            <div>
+              <button onClick={handleBack}
+                style={{ background: "none", border: "none", color: "#1a73e8", fontSize: 13, cursor: "pointer", marginBottom: 12, padding: 0, fontWeight: 600 }}>
+                ← Back to all issues
+              </button>
+              <div style={{ background: "#fff", borderRadius: 12, border: `1.5px solid ${cat.border}`, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+                <div style={{ background: cat.bg, padding: "14px 20px", borderBottom: `1px solid ${cat.border}` }}>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: cat.color }}>{cat.emoji} {cat.label}</div>
+                  <div style={{ fontSize: 12, color: "#5f6368", marginTop: 2 }}>{cat.sublabel}</div>
+                </div>
+                <div style={{ padding: "12px 0" }}>
+                  {cat.steps.map((step, i) => {
+                    const isOpen = openStep === i;
+                    const isLast = i === cat.steps.length - 1;
+                    return (
+                      <div key={i} style={{ borderBottom: !isLast ? "1px solid #f0f0f0" : "none" }}>
+                        <div onClick={() => setOpenStep(isOpen ? null : i)}
+                          style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", cursor: "pointer", background: isOpen ? "#fafafa" : "#fff" }}>
+                          <div style={{ width: 26, height: 26, borderRadius: "50%", background: isOpen ? cat.color : "#e8eaed", color: isOpen ? "#fff" : "#5f6368", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</div>
+                          <div style={{ flex: 1, fontSize: 14, fontWeight: 600, color: "#202124" }}>{step.title}</div>
+                          <span style={{ fontSize: 12, color: "#9aa0a6" }}>{isOpen ? "▲" : "▼"}</span>
+                        </div>
+                        {isOpen && (
+                          <div style={{ padding: "4px 20px 16px 58px" }}>
+                            {step.type === "info" && <p style={{ margin: 0, fontSize: 13, color: "#3c4043", lineHeight: 1.6 }}>{step.body}</p>}
+                            {step.type === "checklist" && (
+                              <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                                {step.items.map((item, j) => (
+                                  <li key={j} style={{ display: "flex", gap: 8, fontSize: 13, color: "#3c4043", marginBottom: 6 }}>
+                                    <span style={{ color: cat.color, fontWeight: 700 }}>✓</span><span>{item}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            {step.type === "action" && (
+                              <div>
+                                <p style={{ margin: "0 0 14px", fontSize: 13, color: "#3c4043", lineHeight: 1.6 }}>{step.body}</p>
+                                {submitted ? (
+                                  <div style={{ background: "#e6f4ea", border: "1.5px solid #a8d5b5", borderRadius: 8, padding: "12px 16px", fontSize: 13, color: "#188038", fontWeight: 600 }}>
+                                    ✅ Submitted! A lead will review your {cat.issueType === "BSI Feedback" || cat.issueType === "SOP Gap" ? "feedback" : "report"} shortly. You can close this or go back.
+                                  </div>
+                                ) : (
+                                  <SubmitForm cat={cat} onSuccess={() => setSubmitted(true)} />
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+          <div style={{ textAlign: "center", fontSize: 11, color: "#9aa0a6", marginTop: 16 }}>AppFolio Load Tool · BSI Escalation Guide · v1.3</div>
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById("root"));
+  </script>
+</body>
+</html>
